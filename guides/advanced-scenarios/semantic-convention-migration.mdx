@@ -1,0 +1,251 @@
+---
+title: "Migrating to Stable OpenTelemetry Semantic Conventions"
+description: "Practical guide to understanding and transitioning between legacy and new OTel semantic conventions for metrics and traces using the OTEL_SEMCONV_STABILITY_OPT_IN environment variable. Provides migration recommendations and backward compatibility strategies."
+---
+
+# Migrating to Stable OpenTelemetry Semantic Conventions
+
+This practical guide walks you through understanding and transitioning from legacy OpenTelemetry (OTel) semantic conventions to the new stable conventions supported by the `otelsql` instrumentation. By configuring the `OTEL_SEMCONV_STABILITY_OPT_IN` environment variable, you can migrate your metrics and traces seamlessly while maintaining backward compatibility.
+
+---
+
+## 1. Migration Overview
+
+### What You Will Achieve
+
+By following this guide, you will learn how to:
+
+- Understand the differences between legacy and stable OTel semantic conventions in `otelsql`.
+- Configure your instrumentation to opt into the desired semantic convention stability level.
+- Ensure your existing dashboards and alerts continue to work during migration.
+- Benefit from enhanced error attribution with stable conventions.
+
+### Prerequisites
+
+- Familiarity with Go's `database/sql` package instrumentation using `otelsql`.
+- Your application uses `otelsql` for tracing and metrics collection.
+- Access to your application's environment configuration to set environment variables.
+
+### Expected Outcomes
+
+- Correct telemetry data emitted according to your selected semantic convention.
+- Ability to gradually migrate monitoring tools without losing visibility.
+- Enhanced observability through new attributes like `error.type`.
+
+---
+
+## 2. Understanding Semantic Convention Stability Levels
+
+The `OTEL_SEMCONV_STABILITY_OPT_IN` environment variable controls which semantic conventions `otelsql` uses for metrics and trace attributes.
+
+| Setting (Value)           | Description                                        | Metrics Emitted                                   | Trace Attributes        |
+|--------------------------|--------------------------------------------------|--------------------------------------------------|------------------------|
+| (empty string) `""`    | Legacy behavior with only `db.statement` attribute | Legacy `db.sql.latency` metric only               | Legacy `db.statement` only |
+| `database/dup`           | Both legacy and stable attributes for gradual migration | Both legacy and stable metrics (`db.sql.latency`, `db.client.operation.duration`) | Both legacy and stable attributes present |
+| `database`               | Stable semantic conventions only                   | Only stable `db.client.operation.duration` metric | Only stable `db.query.text` attribute |
+
+
+> This environment variable is supported for a transitional period. Eventually, legacy support may be removed, so migrating to stable conventions is recommended.
+
+---
+
+## 3. Step-by-Step Migration Instructions
+
+<Steps>
+<Step title="Step 1: Check Current Semantic Convention Setting">
+Start by checking if the `OTEL_SEMCONV_STABILITY_OPT_IN` is set in your environment.
+
+```bash
+echo "$OTEL_SEMCONV_STABILITY_OPT_IN"
+```
+
+If it prints nothing, you are currently using the legacy semantic conventions.
+
+</Step>
+<Step title="Step 2: Choose Migration Approach">
+Choose one of the following based on your risk tolerance and environment:
+
+- **Gradual Migration** (recommended): Use `database/dup` to emit both legacy and new metrics.
+- **Immediate Migration to Stable**: Use `database` to fully switch to the new stable conventions.
+
+Consider your monitoring setup to ensure compatibility with new attribute keys.
+
+</Step>
+<Step title="Step 3: Set the Environment Variable">
+Apply the chosen setting by exporting the variable in your application's runtime environment. For example:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database/dup
+```
+
+Or to switch directly to stable:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database
+```
+
+Restart your application to pick up the new configuration.
+
+</Step>
+<Step title="Step 4: Verify Metrics and Trace Attributes">
+After restarting, verify that your telemetry reflects the expected attributes:
+
+- Queries should include the attribute `db.query.text` instead of or in addition to `db.statement`.
+- Metrics will switch from `db.sql.latency` to `db.client.operation.duration` accordingly.
+- Error spans include the `error.type` attribute with granular error information.
+
+Use your observability backend tools (e.g., Jaeger, Prometheus) to view these changes.
+
+</Step>
+<Step title="Step 5: Update Monitoring Dashboards and Alerts">
+Adjust any queries, dashboards, or alerting rules:
+
+- If you used legacy attribute names like `db.statement` or `db.sql.latency`, add or replace them to support `db.query.text` and `db.client.operation.duration`.
+- During gradual migration (`database/dup`), you can monitor both sets side by side.
+
+This ensures no gaps in your observability coverage.
+
+</Step>
+<Step title="Step 6: Decommission Legacy Attributes (Optional)
+">
+Once stable metrics and attributes are fully operational and tested, set the environment variable to `database` (stable only) to phase out legacy telemetry.
+
+Test thoroughly before removing backward compatibility.
+
+</Step>
+</Steps>
+
+---
+
+## 4. Practical Examples
+
+### Example: Setting Environment and Instrumenting
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database/dup
+```
+
+Instrument your database as usual:
+
+```go
+import (
+    "github.com/XSAM/otelsql"
+    semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+func main() {
+    db, err := otelsql.Open("mysql", "root:password@tcp(localhost:3306)/mydb", otelsql.WithAttributes(
+        semconv.DBSystemMySQL,
+    ))
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    // Register DBStats metrics
+    err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
+        semconv.DBSystemMySQL,
+    ))
+    if err != nil {
+        panic(err)
+    }
+
+    // Use db for queries as normal
+}
+```
+
+### Expected Span Attributes with `database/dup`
+
+| Attribute Key          | Value Example                  | Notes                        |
+|-----------------------|-------------------------------|------------------------------|
+| `db.statement`        | `SELECT * FROM users`          | Legacy attribute retained    |
+| `db.query.text`       | `SELECT * FROM users`          | New stable attribute         |
+| `method`              | `Exec` or `Query`              | Operation method name        |
+| `error.type`          | `database/sql/driver.ErrBadConn` | Present if error occurs    |
+
+### Metrics Comparison
+
+| Metric Name                 | Notes                                      |
+|-----------------------------|--------------------------------------------|
+| `db.sql.latency`            | Legacy latency metric (milliseconds)       |
+| `db.client.operation.duration` | Stable semantic convention metric (seconds) |
+
+> When `database/dup` is set, both metrics are emitted for compatibility.
+
+---
+
+## 5. Backward Compatibility Considerations
+
+- With default (empty) setting, only legacy metrics and attributes are emitted, so existing dashboards work unchanged.
+- Migrating to `database/dup` setting allows simultaneous emission, enabling smooth transition without downtime.
+- Fully stable mode (`database`) requires updates to observability tools to recognize new attributes and metrics.
+
+---
+
+## 6. Enhanced Error Attribution
+
+Stable semantic conventions enrich your telemetry by adding detailed `error.type` attributes automatically:
+
+- Handles standard driver errors such as `driver.ErrBadConn`, `driver.ErrSkip`, and `driver.ErrRemoveArgument`.
+- Custom or builtin errors are represented with their full type names.
+
+This improvement empowers deeper diagnostics and alerting capabilities.
+
+**Note:** The `error.type` attribute is only populated if you opt-in to stable or dup semantic conventions (`database/dup` or `database`). It is absent under legacy mode.
+
+---
+
+## 7. Troubleshooting Common Issues
+
+<AccordionGroup title="Troubleshooting Semantic Convention Migration">
+<Accordion title="No change observed after setting OTEL_SEMCONV_STABILITY_OPT_IN">
+- Confirm that the environment variable is exported in the same shell or environment where the app runs.
+- Restart the application to reload configuration.
+- Check the application logs or instrumentation logs for initialization messages related to semantic conventions.
+</Accordion>
+<Accordion title="Legacy attributes still appear with `database` setting">
+- Confirm there are no conflicting environment variables or configurations overriding your setting.
+- Verify versions: this feature requires recent versions of `otelsql` that support semantic convention opt-in.
+</Accordion>
+<Accordion title="error.type attribute missing in spans">
+- Ensure you're using `database` or `database/dup` setting.
+- Confirm error recording is enabled and errors are correctly propagated in your code.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 8. Additional Tips & Best Practices
+
+- **Gradual rollout:** Start with `database/dup` to simultaneously emit legacy and stable metrics.
+- **Monitor telemetry:** Use your observability tools to track the presence and correctness of new attributes.
+- **Dashboard updates:** Plan dashboard and alert changes during a maintenance window to avoid disruptions.
+- **Stay updated:** Follow the `otelsql` CHANGELOG and documentation for latest semantics and migration timelines.
+
+---
+
+## 9. Resources & Next Steps
+
+- [otelsql README](https://github.com/XSAM/otelsql#readme) — To get setup and understand core instrumentation usage.
+- [Semantic Conventions and Stability Levels](./api-reference/advanced-reference/semantic-conventions) — Detailed reference on semantic conventions support.
+- [Error Handling and Attribution](./api-reference/advanced-reference/error-handling) — In-depth guide on error attributes.
+- [Breaking Changes & Migration Steps](./changelog/upgrade-migration/breaking-changes) — For any required code changes related to new releases.
+- [Troubleshooting: Missing Spans or Metrics](./guides/advanced-scenarios/troubleshooting-signals) — To diagnose telemetry capture issues.
+
+For further learning, consider exploring these related guides:
+
+- **Instrumenting database/sql with otelsql**
+- **Viewing Traces and Metrics: Quick Verification**
+- **Sending Telemetry to the OpenTelemetry Collector**
+
+---
+
+**By migrating to the stable OpenTelemetry semantic conventions, you enable better observability, enhanced diagnostics, and prepare your applications for future-proof telemetry standards.**
+
+
+--- 
+
+*This documentation is based on the latest available specifications as of June 2024, sourced directly from otelsql's configuration and test code, ensuring authoritative and precise guidance.*
+
+
+---
