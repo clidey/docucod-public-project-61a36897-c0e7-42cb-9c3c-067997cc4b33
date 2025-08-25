@@ -1,0 +1,187 @@
+---
+title: "Installing otelsql"
+description: "Walks users through installing otelsql using Go, including package management commands and hints for common development environments. Covers how to add otelsql as a dependency and verify its installation."
+---
+
+# Installing otelsql
+
+This guide walks you through the exact steps to install the **otelsql** instrumentation library for Go, ensuring it is correctly added as a dependency in your project and ready for use. Whether you're starting a new Go project or integrating into an existing one, this page covers package management commands, common environment hints, and verification methods.
+
+---
+
+## 1. Prerequisites
+
+Before installing otelsql, make sure you have the following:
+
+- **Go environment** installed and configured properly (Go 1.16+ is recommended).
+- Your project is using Go Modules (`go.mod` present) for dependency management.
+- Network access to fetch packages from `proxy.golang.org` or your module proxy.
+
+> If you’re new to Go modules, ensure your project directory contains a `go.mod` file by running:
+>
+> ```bash
+> go mod init your-module-name
+> ```
+
+---
+
+## 2. Adding otelsql as a Dependency
+
+To include otelsql in your project, run the following command in your project root:
+
+```bash
+go get github.com/XSAM/otelsql@latest
+```
+
+This pulls the latest mainline version of otelsql into your module dependencies.
+
+> **Tip:** Pinning a specific version or tag is best practice for production stability. For example:
+>
+> ```bash
+> go get github.com/XSAM/otelsql@v0.9.0
+> ```
+
+
+After fetching, verify that your `go.mod` has been updated to include the module:
+
+```bash
+cat go.mod | grep otelsql
+```
+
+You should see an entry similar to:
+
+```
+require github.com/XSAM/otelsql v0.9.0 // indirect
+```
+
+---
+
+## 3. Considerations for Common Development Environments
+
+### IDEs and Editors
+- Ensure your IDE (VSCode, GoLand, etc.) refreshes module dependencies after running `go get`.
+- Some IDEs have Go modules integration that automatically runs `go mod tidy`.
+
+### Proxy and Caching
+- If your network uses a private proxy or needs credentials, configure `GOPROXY` environment variable accordingly.
+- Example to disable proxy (not recommended unless necessary):
+
+```bash
+export GOPROXY=direct
+```
+
+### Working with Vendor Folders
+- If using vendoring (`go mod vendor`), run this command post-install:
+
+```bash
+go mod vendor
+```
+
+- This ensures otelsql and its dependencies are copied locally.
+
+---
+
+## 4. Verifying the Installation
+
+To confirm that otelsql installed successfully:
+
+1. Run:
+
+```bash
+go list -m all | grep github.com/XSAM/otelsql
+```
+
+You should see your otelsql dependency listed.
+
+2. Alternatively, try to import otelsql in a Go file:
+
+```go
+package main
+
+import "github.com/XSAM/otelsql"
+
+func main() {}
+```
+
+3. Build the project:
+
+```bash
+go build
+```
+
+No errors related to missing packages indicate success.
+
+> **Common Issue:** 
+> If you see "module not found" errors, double-check your internet connection and proxy settings.
+
+---
+
+## 5. Troubleshooting Installation Issues
+
+### Network or Proxy Errors
+- Check your `GOPROXY` and `GONOPROXY` environment variables:
+
+```bash
+go env GOPROXY
+```
+
+- Set GOPROXY to `https://proxy.golang.org,direct` to allow fallback.
+
+### Module Version Conflicts
+- Run `go mod tidy` to clean up inconsistencies:
+
+```bash
+go mod tidy
+```
+
+- Check if your project or dependencies require conflicting versions of otelsql and resolve manually.
+
+### IDE Doesn’t Recognize New Dependency
+- Restart the IDE to refresh module cache.
+- Run `go clean -modcache` to clear cache if necessary.
+
+### Building Fails After Installation
+- Confirm your Go version supports module mode:
+
+```bash
+go version
+```
+
+- Ensure your `go.mod` file exists and is valid.
+
+---
+
+## 6. Next Steps
+
+With otelsql successfully installed, proceed to:
+
+- [Configuration Basics](/getting-started/configuration-usage/basic-configuration) to set up your instrumentation.
+- [First otelsql Integration](/getting-started/configuration-usage/first-otel-instrumentation) for detailed examples on adding tracing to your database/sql usage.
+- Explore [Local Examples](/getting-started/examples-integration/local-quickstart-examples) to see otelsql in action with OpenTelemetry Collector.
+
+---
+
+## Summary
+This page covered:
+
+- Prerequisites for Go projects using modules
+- How to add otelsql as a dependency with `go get`
+- Environment considerations to avoid common pitfalls
+- Verification steps to confirm installation success
+- Troubleshooting common installation issues
+
+By following these steps, your Go project will be ready to integrate full OpenTelemetry instrumentation for database/sql using otelsql.
+
+---
+
+<Check>
+Ensure Go Modules are initialized and functional in your project before starting.
+</Check>
+
+<Tip>
+Pin specific otelsql versions for production use to maintain stability.
+</Tip>
+
+<Warning>
+Network proxy misconfigurations often cause installation failures; verify environment variables carefully.
+</Warning>
