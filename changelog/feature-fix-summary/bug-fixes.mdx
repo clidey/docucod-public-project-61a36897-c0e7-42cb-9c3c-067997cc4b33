@@ -1,0 +1,115 @@
+---
+title: "Resolved Issues & Patches"
+description: "Lists and explains fixed bugs, CVEs, and stability improvements. Helps teams track defect resolutions that could affect their observability reliability and performance."
+---
+
+# Resolved Issues & Patches
+
+This page provides a comprehensive and clear record of all fixed bugs, security vulnerabilities (CVEs), and stability improvements addressed in otelsql across releases. It assists teams and users in tracking defect resolutions that enhance observability reliability, telemetry accuracy, and performance.
+
+---
+
+## 1. Purpose and User Benefits
+
+Users rely on otelsql for robust tracing and metrics instrumentation of Go's database/sql interactions. This page ensures users understand which issues have been resolved so they can confidently upgrade and maintain stability in their observability stacks. Each fix is framed to highlight its impact on the reliability of telemetry, troubleshooting, and overall system behavior.
+
+
+## 2. Structure of Resolved Issues Documentation
+
+### Categories of Resolved Items
+- **Bug Fixes**: Defects impacting functionality, telemetry fidelity, or data collection.
+- **Security Patches**: CVEs and other vulnerabilities fixed to protect data integrity and prevent exploits.
+- **Stability Improvements**: Fixes enhancing robustness under load, edge cases, or unusual environment conditions.
+
+### For each resolved issue, users will find:
+- **Issue Identifier** (e.g., GitHub issue or CVE number)
+- **Description** of the problem affecting users
+- **Impact** on telemetry reliability, performance, or security
+- **Resolution** summary outlining what was changed to fix the issue
+- **Affected Versions** and applicable upgrade paths
+
+
+## 3. Recent Resolved Issues Highlights
+
+(Example entries — actual issue data should be drawn from release notes and issue tracker.)
+
+### Bug Fixes
+- **Fix for Connection Pool Metrics Misreporting**
+  - *Issue*: Metrics like open connections and wait count were occasionally underreported, causing dashboards to show inaccurate database load.
+  - *Impact*: Users relying on Prometheus metrics could miss critical alerts.
+  - *Resolution*: Corrected metric registration and value aggregation logic to ensure accurate real-time reporting.
+  - *Affected Versions*: 1.5.0 through 1.7.2
+
+- **Span Attributes Missing on Query Errors**
+  - *Issue*: Some query errors did not propagate correctly to trace spans causing gaps in diagnostics.
+  - *Impact*: Reduced trace observability during error conditions.
+  - *Resolution*: Enhanced error attribution to spans following OpenTelemetry semantic conventions.
+  - *Affected Versions*: 1.6.x
+
+### Security Fixes
+- **CVE-2024-XXXXX: Sanitization of SQL Comments Injected by SQLCommenter Integration**
+  - *Issue*: Certain malformed comments could lead to malformed span tags, risking injection in observability backends.
+  - *Impact*: Potential telemetry data integrity compromise.
+  - *Resolution*: Implemented strict validation and sanitization of injected SQL comments.
+  - *Affected Versions*: Prior to 1.7.0
+
+### Stability Improvements
+- **Timeout Handling in Long-Running Queries**
+  - *Issue*: Instrumentation caused unexpected blocking in connection pool during query timeouts.
+  - *Impact*: Application performance degradation under load.
+  - *Resolution*: Improved concurrency controls and metrics flushing logic.
+  - *Affected Versions*: 1.4.x through 1.7.1
+
+
+## 4. How to Use This Page Effectively
+
+- **Check Versions**: Identify if your installed otelsql version is impacted by a reported issue.
+- **Upgrade Recommendations**: Follow migration guidance when upgrading to versions containing fixes.
+- **Troubleshooting**: Use issue descriptions and impacts to diagnose telemetry discrepancies or failures.
+- **Security Awareness**: Prioritize upgrades addressing CVEs to maintain data trustworthiness.
+
+
+## 5. Troubleshooting Common Symptoms from Resolved Issues
+
+- **Inaccurate or missing database metrics**
+  - Confirm you are running a fixed version listed here.
+  - Validate your Prometheus setup and metric registration following the [Metrics Instrumentation guide](/api-reference/core-api/metrics-instrumentation).
+
+- **Trace spans missing error details**
+  - Ensure you use a version with proper error attribution.
+  - Review [Instrumenting database/sql](/api-reference/core-api/instrumenting-database) for guidance on error handling.
+
+- **Unexpected latency or blocked connections during queries**
+  - Check if your version includes fixes for timeout and connection pool handling.
+  - Consult [Best Practices](/guides/best-practices/instrumentation-patterns) for optimized usage.
+
+
+## 6. Related Documentation
+
+- **Latest Release Overview:** Review the newest fixes and features to stay current. `/changelog/release-notes/latest-release`
+- **All Releases & History:** Browse the full release history and resolved issues list. `/changelog/release-notes/historical-releases`
+- **Breaking Changes & Migration Steps:** Prepare for upgrades that require attention to compatibility. `/changelog/upgrade-migration/breaking-changes`
+- **Deprecated & Removed Features:** Understand the lifecycle of features you depend on. `/changelog/upgrade-migration/deprecations-removals`
+
+
+## 7. Example of a Typical Resolved Issue Entry
+
+```markdown
+### Issue #123: Fix Connection Pool Metric Underreporting
+
+- **Description:** Metrics related to database connection pool states were inconsistently reported, leading to inaccurate Prometheus scrape results.
+- **Impact:** Users experienced misleading database performance dashboards.
+- **Resolution:** Refined the `RegisterDBStatsMetrics` logic to ensure all connection pool metric counters update reliably.
+- **Version Fixed:** 1.7.3
+- **Upgrade Recommendation:** Update to 1.7.3 or later to obtain accurate metrics.
+```
+
+
+---
+
+By maintaining this detailed and user-centric changelog of bug fixes, CVEs, and stability improvements, otelsql empowers users to confidently manage observability quality and keep their telemetry infrastructure resilient.
+
+
+---
+
+[Back to Changelog Overview](/changelog)
