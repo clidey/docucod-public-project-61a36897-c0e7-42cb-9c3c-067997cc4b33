@@ -1,0 +1,166 @@
+---
+title: "What is otelsql?"
+description: "Get a concise definition of otelsql, including its origins as a port from the OpenTelemetry Go contrib, its role in providing tracing and metrics for Go SQL operations, and its ecosystem fit. This is your elevator pitch for the product."
+---
+
+# What is otelsql?
+
+## Your Gateway to Automated Go SQL Observability
+
+otelsql is an OpenTelemetry instrumentation library specifically designed for Go's `database/sql` package. It seamlessly integrates tracing and metrics into your existing SQL operations, enabling you to monitor, troubleshoot, and optimize your database interactions without intrusive code changes.
+
+- **Robust Tracing:** Automatically generates detailed spans for all database operations, enriching your traces with query information and execution details.
+- **Comprehensive Metrics:** Tracks query latencies and connection pool statistics, giving you real-time insights into database performance.
+- **Flexible Integration:** Supports multiple instrumentation approaches tailored to your application's needs, including direct driver wrapping, connector wrapping, and more.
+- **Ecosystem-Friendly:** Built as a high-quality port from the OpenTelemetry Go contrib repository, ensuring alignment with OpenTelemetry standards and ecosystem tools.
+
+Ideal for Go developers, DevOps engineers, and SRE teams who want a reliable, stable way to instrument and monitor SQL database interactions effortlessly.
+
+---
+
+## What is otelsql?
+
+otelsql is an observability instrumentation library that automatically injects OpenTelemetry traces and metrics into Go's `database/sql` package operations. It originates as a port of the OpenTelemetry Go contrib instrumentation, reimagined and independently maintained to provide a stable, enhanced, and easily adoptable solution.
+
+The library tackles the challenge of understanding what happens during SQL queries and connection lifecycle events by creating spans and recording metrics without requiring developers to manually add instrumentation code around every database call.
+
+With otelsql, your Go applications can emit telemetry data compatible with all OpenTelemetry-compliant backends, helping you achieve end-to-end visibility into database behavior with minimal effort.
+
+---
+
+## Why otelsql Stands Out
+
+- **Ported for Stability and Convenience:** While originally part of the OpenTelemetry contrib ecosystem, otelsql offers a stable independent module, making it easier for users to adopt without complex replacements or unstable versions.
+- **Trace & Metrics Instrumentation:** It provides both tracing of SQL calls and detailed metrics on query durations and connection pool state, supporting robust monitoring across your database usage.
+- **Semantic Convention Flexibility:** Supports multiple OpenTelemetry semantic conventions for metrics and spans, letting you gradually migrate from legacy metrics to stable, standardized formats.
+- **Error Attribution:** Automatically attributes errors with detailed error types, improving the clarity of failures and easing debugging efforts.
+
+---
+
+## How otelsql Works: A Simplified View
+
+At its core, otelsql wraps the standard Go database driver and intercepts all operations such as queries, transactions, connection handling, and preparation. For every intercepted operation, it handles:
+
+1. **Span Creation:** Generates OpenTelemetry spans that encompass the execution time and context of the SQL call.
+2. **Attribute Enrichment:** Adds meaningful attributes such as database system type, SQL statements (with options to disable or redact for security), and error details.
+3. **Metrics Collection:** Records histograms of call durations and counters for connection pool statistics.
+
+This layering is transparent to your application, requiring no major code rewrites.
+
+---
+
+## Key Features & Capabilities
+
+### 1. Multiple Instrumentation Methods
+
+Use whichever suits your project best:
+- `otelsql.Open` – a drop-in replacement for `sql.Open` with automatic instrumentation.
+- `otelsql.OpenDB` – instrument an existing `driver.Connector`.
+- `otelsql.Register` – registers an instrumented driver for integration.
+- `otelsql.WrapDriver` – wraps a `driver.Driver` with otelsql instrumentation.
+
+### 2. Out-of-the-Box Metrics on SQL and Connections
+
+- Query latency histograms (in milliseconds and seconds, depending on semantic convention).
+- Connection pool stats: max open connections, active/inuse connections, wait counts and durations, and closed connection counts by reason.
+
+### 3. Flexible Configuration
+
+- Add custom attributes to spans and metrics.
+- Configure span naming conventions.
+- Enable or disable query text instrumentation for security or performance.
+- Choose semantic convention stability modes for gradual adoption.
+
+### 4. Context Propagation via SQL Commenter (Experimental)
+
+Injects comments into SQL queries to propagate context downstream, enhancing trace continuity across distributed systems.
+
+### 5. Error Type Attribution
+
+Provides detailed error information automatically attached to spans and metrics for easier root cause analysis.
+
+---
+
+## Real-World Scenario: Getting Traces and Metrics with Minimal Effort
+
+Imagine running a Go service that accesses a MySQL database. Without otelsql, you rely on logs or manual instrumentation to understand query performance.
+
+By replacing your `sql.Open` with `otelsql.Open` and registering metrics:
+
+```go
+import (
+  "database/sql"
+  semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+  "github.com/XSAM/otelsql"
+)
+
+// Connect with instrumentation
+attrs := append(otelsql.AttributesFromDSN(mysqlDSN), semconv.DBSystemMySQL)
+db, err := otelsql.Open("mysql", mysqlDSN, otelsql.WithAttributes(attrs...))
+if err != nil {
+    panic(err)
+}
+defer db.Close()
+
+// Register to collect DB connection metrics
+err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(attrs...))
+if err != nil {
+    panic(err)
+}
+```
+
+Now, every SQL operation emits traces viewable in tools like Jaeger and metrics in systems like Prometheus, without changing your query logic.
+
+---
+
+## Practical Tips
+
+- **Start Simple:** Use `otelsql.Open` with default settings to add tracing quickly.
+- **Adjust Span Content:** Disable query text if your SQL statements contain sensitive info.
+- **Monitor Metrics Compatibility:** Use the `OTEL_SEMCONV_STABILITY_OPT_IN` environment variable to control metric formats and ensure your monitoring dashboards stay accurate.
+- **Explore Examples:** Check the provided Docker Compose examples to see otelsql integrated with OpenTelemetry Collector, Jaeger, and Prometheus.
+
+---
+
+## Troubleshooting Common Issues
+
+- If you don't see spans, verify that your tracer provider is correctly configured and that `otelsql` is used on your database connections.
+- Check that your database driver supports context-aware operations.
+- For metrics issues, confirm that `RegisterDBStatsMetrics` is called after opening the DB connection.
+- Use the example projects as a reference to verify your implementation matches recommended settings.
+
+---
+
+## Getting Started with otelsql
+
+To begin, simply install otelsql:
+
+```bash
+$ go get github.com/XSAM/otelsql
+```
+
+Then instrument your `database/sql` usage with a few lines of code as shown above. Explore the [Getting Started section](/getting-started) for detailed steps on installation, configuration, and validation.
+
+---
+
+## Summary
+
+otelsql brings powerful, low-overhead observability to Go's standard database SQL layer. By providing tracing and metrics instrumentation out of the box, it empowers developers and operators to gain deeper insights into database performance and reliability, dramatically easing troubleshooting and optimization efforts.
+
+For more detailed usage, configuration options, and advanced scenarios, refer to other documentation sections such as:
+- [Value Proposition & Primary Use Cases](/overview/product-intro-core-value/value-proposition-use-cases)
+- [Architecture & Data Flow](/overview/architecture-concepts/architecture-and-data-flow)
+- [Integration with Observability Systems](/overview/integration-ecosystem/example-integrations)
+
+The project is open source and actively maintained at its [GitHub repository](https://github.com/XSAM/otelsql), which also hosts examples and further libraries.
+
+---
+
+### Explore Next
+- [Value Proposition & Primary Use Cases](/overview/product-intro-core-value/value-proposition-use-cases) — Discover what otelsql helps you achieve in production environments.
+- [Target Audience](/overview/product-intro-core-value/audience-reach) — Understand who benefits most from otelsql.
+- [Architecture & Data Flow](/overview/architecture-concepts/architecture-and-data-flow) — Gain insights into the inner workings.
+
+<Tip>
+For seamless tracing continuity, consider enabling the SQL Commenter feature experimentally to propagate tracing context across SQL queries.
+</Tip>
