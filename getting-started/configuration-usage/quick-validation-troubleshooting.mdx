@@ -1,0 +1,174 @@
+---
+title: "Quick Validation & Troubleshooting"
+description: "Provides steps to verify a successful otelsql setup by capturing the first traces and metrics. Details common setup errors and practical troubleshooting steps for fast resolution."
+---
+
+# Quick Validation & Troubleshooting
+
+Ensure your otelsql setup is working correctly by capturing your first traces and metrics, and quickly resolving common issues. This guide walks you through verifying a successful integration and troubleshooting practical setup errors for fast resolution.
+
+---
+
+## 1. Verify Your otelsql Setup
+
+Quick validation after setup is crucial to confirm instrumented tracing and metrics are collected effectively.
+
+### Step 1: Confirm Instrumented Connection Creation
+Make sure your Go application opens the database connection using `otelsql.Open` or properly registers the instrumented driver.
+
+Example snippet:
+```go
+import "github.com/XSAM/otelsql"
+
+// Open a traced database connection
+db, err := otelsql.Open("mysql", "user:password@tcp(localhost:3306)/dbname")
+if err != nil {
+    log.Fatalf("failed to open db: %v", err)
+}
+```
+
+<Tip>
+Always check `err` when opening the database to ensure otelsql instrumentation is applied correctly.
+</Tip>
+
+### Step 2: Perform a Database Operation
+Execute a simple query to generate traceable activity:
+```go
+var now time.Time
+err = db.QueryRowContext(ctx, "SELECT NOW()").Scan(&now)
+if err != nil {
+    log.Fatalf("query failed: %v", err)
+}
+log.Printf("current time: %v", now)
+```
+
+### Step 3: Check for Active Traces and Metrics
+Use your observability backend (e.g., Jaeger for traces, Prometheus for metrics) to confirm data arrives.
+
+- **Jaeger UI:** Access typically at `http://localhost:16686` to view recent database traces.
+- **Prometheus UI:** Access typically at `http://localhost:9090`, then query metrics like `db_query_duration_seconds`.
+
+<Tip>
+If using the example setup from the `otel-collector` Docker Compose, ensure all services (MySQL, Collector, Jaeger, Prometheus) are running.
+</Tip>
+
+## 2. Common Setup Errors & Troubleshooting
+
+Encountering issues is normal. Below are practical troubleshooting steps for common problems identified in the otelsql setup.
+
+<AccordionGroup title="Troubleshooting Common Issues">
+
+<Accordion title="No Traces Visible in Jaeger">
+
+- **Cause:** Collector or exporter configuration issues.
+- **Checkpoints:**
+  - Confirm OpenTelemetry Collector is running and listening on port `4317` with OTLP gRPC receiver configured.
+  - Verify your app's tracer provider is set to export traces via OTLP to the collector endpoint.
+  - Look for collector logs for errors.
+- **Actions:**
+  - Restart the collector service.
+  - Ensure Docker Compose dependencies are up and healthy.
+  - Confirm client app connects with correct OTLP endpoint.
+
+</Accordion>
+
+<Accordion title="Metrics Not Appearing in Prometheus">
+
+- **Cause:** Metrics pipeline or network issues.
+- **Checkpoints:**
+  - Confirm OpenTelemetry Collector exports metrics to Prometheus (`0.0.0.0:9090`).
+  - Check Prometheus scrape configuration includes the collector metrics endpoint.
+  - Validate network connectivity between Collector and Prometheus.
+- **Actions:**
+  - Restart Prometheus service.
+  - Confirm Prometheus targets page shows healthy scrape of the collector.
+
+</Accordion>
+
+<Accordion title="Database Connection Fails or Errors Reported">
+
+- **Cause:** Driver registration or connection string errors.
+- **Checkpoints:**
+  - Confirm driver name used with `otelsql.Open()` matches a registered driver.
+  - Validate database credentials and network reachability.
+  - Look at Go app logs for detailed errors.
+- **Actions:**
+  - Verify driver registration as per [First otelsql Integration](https://your-docs-url/getting-started/configuration-usage/first-otel-instrumentation).
+  - Try connecting without otelsql to isolate issues.
+
+</Accordion>
+
+<Accordion title="Spans or Metrics Missing Unexpectedly">
+
+- **Cause:** Sampling, filtering, or metrics registration issues.
+- **Checkpoints:**
+  - Ensure `SpanFilter` is not filtering out your queries.
+  - No errors in metric registration functions.
+  - Confirm metrics registration using `RegisterDBStatsMetrics`.
+- **Actions:**
+  - Temporarily disable filtering to verify.
+  - Check logs for errors in metrics instrumentation.
+
+</Accordion>
+
+</AccordionGroup>
+
+## 3. Quick Validation Example Using Docker Compose
+
+If you used the provided Docker Compose example (found in the `example/otel-collector` directory), validate your setup end-to-end as follows.
+
+### Step 1: Start Services
+```bash
+docker compose up -d
+```
+Ensure all containers start without errors.
+
+### Step 2: Check Client Logs
+```bash
+docker compose logs client
+```
+Look for success messages indicating queries executed.
+
+### Step 3: View Traces in Jaeger
+Open `http://localhost:16686` in a browser, search for traces related to your DB queries.
+
+### Step 4: Query Metrics in Prometheus
+Open `http://localhost:9090` and check for metrics such as:
+```
+db_query_duration_seconds
+```
+
+### Step 5: Shutdown Services
+```bash
+docker compose down
+```
+
+<Tip>
+The example environment bundles a MySQL server, OpenTelemetry Collector, Jaeger, Prometheus, and a client to ease your initial testing.
+</Tip>
+
+## 4. Pro Tips for Fast Resolution
+
+- Use verbose logging in your application to see instrumentation details.
+- Validate your environment variables especially OTEL_EXPORTER_OTLP_ENDPOINT.
+- Ensure correct Go module versions with `go mod tidy` and no conflicting dependencies.
+- Restart services after config changes to reload settings.
+- Check firewall and port mappings in Docker or your local environment.
+
+## 5. Where to Go Next
+
+- For detailed integration and setup, see the [First otelsql Integration](https://your-docs-url/getting-started/configuration-usage/first-otel-instrumentation) guide.
+- Explore examples in [Run Local Examples (Docker & Compose)](https://your-docs-url/getting-started/examples-integration/local-quickstart-examples).
+- If signals are missing, troubleshoot with [Troubleshooting: Missing Spans or Metrics](https://your-docs-url/guides/advanced-scenarios/troubleshooting-signals).
+
+---
+
+## References
+
+- [otelsql GitHub Repository](https://github.com/XSAM/otelsql)
+- [OpenTelemetry Collector Configuration](https://github.com/XSAM/otelsql/blob/main/example/otel-collector/otel-collector.yaml)
+- [Otelsql Example Docker Compose](https://github.com/XSAM/otelsql/blob/main/example/otel-collector/docker-compose.yaml)
+
+---
+
+By following these steps and tips, you will rapidly validate your otelsql instrumentation and smoothly resolve the most frequent issues to reliably capture your first database query traces and metrics.

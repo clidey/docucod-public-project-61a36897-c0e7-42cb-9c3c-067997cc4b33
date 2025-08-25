@@ -1,0 +1,238 @@
+---
+title: "SQLCommenter: Context Propagation & Enhanced Tracing"
+description: "How-to on enabling and configuring enhanced SQL query context propagation using otelsql's SQLCommenter support, leveraging WithSQLCommenter option. Covers benefits, caveats, and real-world usage patterns."
+---
+
+# SQLCommenter: Context Propagation & Enhanced Tracing
+
+## Overview
+
+This guide helps you enable and configure **SQLCommenter support** in otelsql to enhance your SQL query traces with rich context propagation. It explains how to leverage the `WithSQLCommenter` option to automatically inject OpenTelemetry trace context and baggage as SQL comments in your queries, boosting observability and trace correlation.
+
+With this fully integrated approach, your SQL spans are augmented with meaningful metadata propagated transparently, enabling advanced analysis, debugging, and performance monitoring downstream.
+
+---
+
+## What You Will Accomplish
+
+- Enable SQLContext propagation into SQL statements using otelsql's `WithSQLCommenter` option
+- Understand the benefits and limitations of using SQLCommenter for enhanced distributed tracing
+- Integrate context propagation seamlessly with your existing instrumentation setup
+- Learn how SQLCommenter influences traced spans and downstream systems
+
+---
+
+## Prerequisites
+
+- Familiarity with Go's `database/sql` package and otelsql's basic instrumentation methods (`otelsql.Open`, `otelsql.Register`)
+- Basic understanding of OpenTelemetry concepts such as context propagation, spans, and baggage
+- An existing otelsql-enabled `*sql.DB` or wrapped driver setup
+
+---
+
+## Time Estimate
+
+Approximately 10-15 minutes to enable and test SQLCommenter context propagation within your existing otelsql instrumentation.
+
+---
+
+## Difficulty Level
+
+Intermediate — requires some familiarity with telemetry concepts and otelsql customization.
+
+---
+
+## How SQLCommenter Fits Into otelsql
+
+otelsql instruments your Go database/sql operations by creating spans and recording metrics on database calls. SQLCommenter enhances this by injecting trace and baggage context **directly into SQL queries as comments**.
+
+When enabled, otelsql appends encoded context information into each SQL statement automatically, conforming to the OpenTelemetry propagation standards and the SQLCommenter specification.
+
+This helps observability backends that support extracting context from SQL to correlate queries precisely with higher-level distributed traces.
+
+---
+
+## Step-by-Step Instructions
+
+<Steps>
+<Step title="Step 1: Import otelsql and Enable SQLCommenter">
+Add the `WithSQLCommenter()` option when opening or registering your database driver with otelsql.
+
+```go
+import (
+	"database/sql"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	_ "github.com/go-sql-driver/mysql" // or your driver
+)
+
+func main() {
+	db, err := otelsql.Open("mysql", "user:password@tcp(localhost:3306)/dbname",
+		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithSQLCommenter(), // Enable SQLCommenter context propagation
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Use db as usual, executing queries etc.
+}
+```
+
+- **What happens:** The `WithSQLCommenter()` option internally enables injection of trace context and baggage into SQL queries.
+- **Result:** Queries executed via this `db` handle have context comments appended, visible in spans.
+</Step>
+
+<Step title="Step 2: Understand How Context Is Injected">
+Behind the scenes, SQLCommenter creates comments like:
+
+```
+SELECT * FROM users /*traceparent='00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01', b[...]*/
+```
+
+These comments carry:
+
+- `traceparent` header with trace ID and span ID
+- `tracestate` for vendor-specific trace info
+- `baggage` containing user-defined key-value pairs
+
+This information is URL-escaped to conform with SQL syntax.
+
+The carrier (`commentCarrier`) formats and appends these key-value pairs in a single comment block transparently.
+
+Note: If the context lacks trace or baggage, no comment is appended.
+</Step>
+
+<Step title="Step 3: Run Your Instrumented Application and Verify">
+Execute queries normally using your instrumented `*sql.DB`.
+
+Example:
+
+```go
+_, err := db.ExecContext(ctx, "SELECT * FROM orders WHERE id = ?", 123)
+if err != nil {
+	panic(err)
+}
+```
+
+- Check your tracing backend (e.g., Jaeger, via OpenTelemetry Collector) to verify if the SQL query spans have corresponding context attached.
+- Look for evidence of extra attributes or logs showing the propagated trace context.
+
+You can also inspect the raw SQL executed (if your environment logs queries) to see appended comments.
+</Step>
+
+<Step title="Step 4: Optional Configuration and Caveats">
+- The SQLCommenter integration is **experimental**: expect API or behavior changes in future releases.
+- SQLCommenter-enabled queries carry longer SQL strings; consider any backend or proxy length limitations.
+- This method injects a comment into the query text, which some databases or middlewares may ignore or strip.
+- Ensure your database driver and server support comments; some systems might reject or mishandle them.
+- For filtering or disabling SQLCommenter on specific queries, you can manage it via custom span filters or context.
+</Step>
+</Steps>
+
+---
+
+## Practical Example
+
+Suppose you have the following code:
+
+```go
+ctx := context.Background()
+
+query := "SELECT * FROM customers WHERE active = 1"
+rows, err := db.QueryContext(ctx, query)
+if err != nil {
+    log.Fatal(err)
+}
+defer rows.Close()
+```
+
+When SQLCommenter is enabled, the executed SQL will be transformed to:
+
+```
+SELECT * FROM customers WHERE active = 1 /*traceparent='00-...-...-01',baggage='user%3Dalice'*/
+```
+
+This allows downstream receivers to tie this query to the higher-level trace and extract user `alice` from baggage.
+
+---
+
+## Troubleshooting & Best Practices
+
+<AccordionGroup title="Common Issues and How to Solve Them">
+<Accordion title="No SQL comments appended to queries">
+- **Cause:** `WithSQLCommenter()` not enabled or context missing trace/baggage.
+- **Solution:** Confirm your otelsql configuration includes `WithSQLCommenter()`.
+- Ensure active trace spans and baggage exist on the context when executing queries.
+</Accordion>
+<Accordion title="SQL errors due to comments in queries">
+- **Cause:** Some databases or drivers reject or mishandle SQL comments.
+- **Solution:** Verify your DB supports SQL comments (e.g., `/*...*/`).
+- Disable SQLCommenter if incompatible.
+- Alternatively, control propagation via span filters to avoid critical queries.
+</Accordion>
+<Accordion title="Performance Overhead Concerns">
+- Injecting comments adds extra bytes to SQL queries.
+- Usually negligible but consider impact on very high-throughput systems.
+- Profile if necessary and disable for performance-critical paths.
+</Accordion>
+</AccordionGroup>
+
+<Tip>
+To disable SQLCommenter on a per-query basis, implement a custom **SpanFilter** option to exclude spans based on operation or context, which indirectly stops comment injection.
+</Tip>
+
+---
+
+## Summary
+
+By enabling SQLCommenter with `WithSQLCommenter()`, otelsql automatically injects OpenTelemetry trace context into your SQL queries as comments. This empowers downstream observability systems to correlate database operations with distributed traces effortlessly, improving trace fidelity and troubleshooting. While experimental, it is a powerful extension for enhanced telemetry in complex systems.
+
+Use this feature judiciously, considering compatibility and query length implications.
+
+---
+
+## Next Steps & Related Guides
+
+- **First otelsql Integration**: Learn how to instrument your Go apps with basic tracing and metrics via otelsql:
+  - [First otelsql instrumentation](https://pkg.go.dev/github.com/XSAM/otelsql#WithSQLCommenter)
+- **Advanced Collector Integration**: Export telemetry to OpenTelemetry Collector with full visualizations:
+  - [Sending telemetry to OpenTelemetry Collector](../advanced-scenarios/otel-collector-integration)
+- **Basic Tracing and Metrics Validation**: Verify your trace and metrics integration:
+  - [Viewing traces and metrics: Quick verification](../getting-started/basic-tracing-metrics)
+- **Troubleshooting**: Resolve common runtime issues:
+  - [Troubleshooting: Missing spans or metrics](../advanced-scenarios/troubleshooting-signals)
+
+---
+
+## References
+
+- otelsql API Reference: [`WithSQLCommenter`](https://pkg.go.dev/github.com/XSAM/otelsql#WithSQLCommenter)
+- SQLCommenter specification and benefits: https://github.com/opentracing-contrib/sqlcommenter 
+- OpenTelemetry Go: https://opentelemetry.io/docs/instrumentation/go/
+- Otelsql GitHub Repository: https://github.com/XSAM/otelsql
+
+---
+
+
+---
+
+## Appendix: Under the Hood - How SQLCommenter Works in otelsql
+
+Internally, when `WithSQLCommenter` is enabled, otelsql uses a `commenter` instance that:
+
+- Implements the OpenTelemetry `TextMapPropagator` interface
+- Uses a special `commentCarrier` to collect key-value pairs of trace context
+- Injects encoded trace context and baggage into a SQL comment appended to the query string
+
+The appended comment looks like:
+
+```sql
+SELECT ... /*key1='val1',key2='val2',...*/
+```
+
+This is implemented in the `commenter.withComment(ctx, query)` method, which is called while preparing SQL spans.
+
+
+---

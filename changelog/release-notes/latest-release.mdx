@@ -1,0 +1,125 @@
+---
+title: "Latest Release Overview"
+description: "A detailed overview of the most recent release, spotlighting headline features, major fixes, and critical usage notes. Ideal for users adopting the newest version or evaluating an upgrade."
+---
+
+# Latest Release Overview — Version 0.39.0
+
+Welcome to the detailed overview of the latest otelsql release, version 0.39.0. This document highlights the key features, critical fixes, and essential considerations designed to help you effectively adopt or upgrade to this version.
+
+---
+
+## 1. Release Summary
+
+Version 0.39.0 represents a significant step forward in otelsql's mission to provide seamless OpenTelemetry tracing and metrics for Go's `database/sql` package. This release balances new functionality with vital bug fixes to enhance reliability and observability.
+
+**Release Version:** 0.39.0  
+**Release Date:** _[Check GitHub releases for exact date]_  
+
+---
+
+## 2. Headline Features and Improvements
+
+- **Version API Exposure:** The release introduces a stable `Version()` function within the core `otelsql` package. Users can now programmatically retrieve the current otelsql version (e.g., `0.39.0`). This aids tooling, diagnostics, and runtime checks.
+
+- **Release Process Enhancements:** The pre-release automation script (`pre_release.sh`) has been improved to validate semantic version tags thoroughly and enforce clean working trees before preparing the release commits. This strengthens the release pipeline's integrity.
+
+- **Robust Build and Test Automation:** The Makefile continues to define a comprehensive development lifecycle, including linting, building, coverage testing, and precommit validations, ensuring the codebase remains solid and reliable for end users.
+
+---
+
+## 3. Key User Benefits
+
+This release emphasizes assuring users that otelsql is dependable and easy to integrate reliably at scale:
+
+- **Dependency and Version Visibility:** With the new version function, you can embed version checks in your applications or CI/CD pipelines, helping detect mismatches or troubleshoot instrumentation issues.
+
+- **Safe and Repeatable Releases:** Improved release scripts reduce risks of accidental regressions or inconsistent states, giving users confidence that upgrading to 0.39.0 is a smooth and well-tested operation.
+
+- **Optimized Developer Experience:** Maintainers ensure continuous quality by running consistent linters and tests across all modules, resulting in fewer runtime surprises for instrumented databases.
+
+---
+
+## 4. Upgrade and Adoption Notes
+
+- Before upgrading, be sure your environment supports Go 1.18 or newer, as outlined in the [Prerequisites & System Requirements](../../getting-started/setup-installation/prerequisites-system-requirements) guide.
+
+- The version function may be called anytime in your application via:
+
+```go
+import "go.opentelemetry.io/otel/otelsql"
+
+func main() {
+    println("otelsql version:", otelsql.Version())
+}
+```
+
+- It is recommended to review your current testing and linting steps using the updated Makefile targets to preemptively catch compatibility issues.
+
+- Consult the [Breaking Changes & Migration Steps](../upgrade-migration/breaking-changes) if you integrate closely with internal otelsql APIs or customized instrumentation.
+
+---
+
+## 5. Troubleshooting Tips
+
+- **Version Mismatch or Detection Problems:** Verify that your application imports the correct module version that updates the internal version constant. Running `otelsql.Version()` should match your expected version string.
+
+- **Build Failures After Upgrade:** Run `make lint` and `make test-default` in the repository root to verify clean builds and passing tests before deploying.
+
+- **Pre-Release Tagging Errors:** If using the pre-release script, ensure your Git tag follows semantic versioning strictly (e.g., `v0.39.0`) and your working directory has no unstaged changes.
+
+---
+
+## 6. Additional Resources and Next Steps
+
+- To instrument your Go database/sql usage instantly, visit the [First otelsql Integration](../../getting-started/configuration-usage/first-otel-instrumentation) guide.
+
+- For understanding metrics instrumentation alongside tracing, check [RegisterDBStatsMetrics](../../api-reference/core-api/metrics-instrumentation).
+
+- Explore detailed usage patterns within the [Recommended Instrumentation Patterns](../../guides/best-practices/instrumentation-patterns).
+
+- Validate your instrumentation visually using the [OpenTelemetry Collector integration example](../../getting-started/examples-integration/next-steps-explore-metrics) and the Docker Compose examples in the `example/otel-collector` folder.
+
+- Plan your upgrade strategy by reviewing [Breaking Changes & Migration Steps](../upgrade-migration/breaking-changes) to address any API or configuration adjustments.
+
+---
+
+### Version Control & Community
+
+- You can browse or clone the full source with this release reflected by default in the [`main` branch of the GitHub repository](https://github.com/XSAM/otelsql).
+
+- Contributions and feedback are welcome as reflected in the comprehensive automated checks defined in the `Makefile` and continuous integration.
+
+---
+
+## 7. Quick Reference Commands from the Release Infrastructure
+
+Check current version in codebase:
+
+```bash
+go run -exec "go run ./version.go"
+```
+
+Run complete precommit checks:
+
+```bash
+make precommit
+```
+
+Run tests with coverage report:
+
+```bash
+make test-coverage
+```
+
+Validate semantic git tag before release:
+
+```bash
+./pre_release.sh -t v0.39.0
+```
+
+---
+
+### Stay tuned for future releases and keep your instrumentation up to date with otelsql to ensure continuous, insightful database telemetry.
+
+---

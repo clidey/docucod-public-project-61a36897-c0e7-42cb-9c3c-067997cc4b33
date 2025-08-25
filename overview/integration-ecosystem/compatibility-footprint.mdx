@@ -1,0 +1,134 @@
+---
+title: "Supported Environments & Compatibility"
+description: "Summarize which OS, Go versions, and architectures are tested and supported, so users can quickly assess fit for their environments. Clarifies otelsql’s policy around Go release support and upstream compatibility expectations."
+---
+
+# Supported Environments & Compatibility
+
+## Quickly Assess Your Environment Compatibility
+
+When integrating `otelsql` into your Go applications, it’s essential to ensure your development and deployment environments align with those officially supported and tested. This page details the supported operating systems, Go versions, and processor architectures to help you evaluate compatibility at a glance. Understanding these parameters guarantees smoother setup, reduces troubleshooting time, and maximizes stability.
+
+---
+
+## Officially Supported Operating Systems
+
+`otelsql` is rigorously tested on the following operating systems:
+
+- **Ubuntu Linux** (commonly used in backend servers and cloud environments)
+- **macOS** (popular on developer workstations)
+- **Windows** (widely used on client machines and some servers)
+
+While the library may function on other UNIX-like systems or distributions, no guarantees or official support are provided for unlisted OS variants.
+
+---
+
+## Supported Go Versions
+
+The instrumentations maintain compatibility with recent stable releases of the Go programming language, specifically:
+
+- Go 1.24
+- Go 1.23
+
+The adoption of these versions aligns with the official Go [Release Policy](https://golang.org/doc/devel/release#policy) to ensure long-term stability and support. Using versions outside this range may result in unexpected behavior or compatibility issues.
+
+---
+
+## Supported Processor Architectures
+
+`otelsql` is verified on the following CPU architectures:
+
+- `amd64` (64-bit x86 architecture, the most common on desktops, laptops, and servers)
+- `386` (32-bit x86 architecture, for legacy or specific use cases)
+
+Supporting these architectures means the library can be used broadly across common hardware platforms.
+
+---
+
+## Compatibility Policy & Upstream Expectations
+
+`otelsql` mirrors the upstream Go ecosystem's compatibility guarantees and release cadence:
+
+- **Broad Compatibility:** While tested explicitly on listed environments, `otelsql` aims for compatibility with any system that supports Go modules and the database/sql package.
+- **Upstream Alignment:** The library aligns its support with officially maintained Go releases, ensuring users benefit from security and performance fixes native to these versions.
+- **No Assumptions:** If you operate in an unsupported environment, caution is advised as issues may stem from unknown system-specific nuances.
+
+---
+
+## Why Compatibility Matters
+
+Consider a developer working on a monitoring service that requires instrumentation of SQL databases. Knowing that `otelsql` supports Ubuntu 1.23 on `amd64` assures seamless integration in popular cloud Linux virtual machines. Similarly, a team using macOS with Go 1.24 on their local machines can confidently prototype and test instrumentation.
+
+If your environment matches these combinations, you minimize the risk of platform-incompatibility bugs and gain assurance that the library has been thoroughly validated.
+
+---
+
+## Best Practices for a Smooth Setup
+
+- **Use Supported Go Versions:** Stick to Go 1.23 or higher as recommended.
+- **Match OS and Architecture:** Deploy on one of the listed OS and architecture combinations.
+- **Monitor Upstream Updates:** Follow Go release notes and adopt new versions when support is established.
+- **Test Thoroughly in Your Environment:** Even within supported boundaries, verify runtime behavior.
+
+<Note>
+For experimental setups or specialized systems, community feedback is welcome via the GitHub repository to help expand compatibility awareness.
+</Note>
+
+---
+
+## Next Steps
+
+- To start instrumenting your database/sql applications, visit the [Installing otelsql](https://github.com/XSAM/otelsql/blob/main/docs/getting-started/setup-installation/installation.md) page.
+- Learn how to configure your first instrumented database connection in the [First otelsql Integration](https://github.com/XSAM/otelsql/blob/main/docs/getting-started/configuration-usage/first-otel-instrumentation.md) guide.
+
+
+---
+
+## Summary Table of Tested Environments
+
+| Operating System | Go Version | Architecture |
+|------------------|------------|--------------|
+| Ubuntu           | 1.24       | amd64        |
+| Ubuntu           | 1.23       | amd64        |
+| Ubuntu           | 1.24       | 386          |
+| Ubuntu           | 1.23       | 386          |
+| macOS            | 1.24       | amd64        |
+| macOS            | 1.23       | amd64        |
+| Windows          | 1.24       | amd64        |
+| Windows          | 1.23       | amd64        |
+| Windows          | 1.24       | 386          |
+| Windows          | 1.23       | 386          |
+
+
+---
+
+## Troubleshooting Compatibility Issues
+
+If you encounter problems that might stem from environmental incompatibility:
+
+- Verify your Go version with `go version`.
+- Confirm your OS and architecture.
+- Ensure that your project's dependencies and build environment align with supported configurations.
+- Refer to the [Quick Validation & Troubleshooting](https://github.com/XSAM/otelsql/blob/main/docs/getting-started/configuration-usage/quick-validation-troubleshooting.md) guide.
+
+If issues persist, consider opening an issue in the project repository with your environment details.
+
+
+---
+
+For further questions or community support, visit the GitHub discussions or CNCF Slack channels linked in the [Communication](https://github.com/XSAM/otelsql#communication) section of the main repository README.
+
+---
+
+**This page is part of the Integration and Ecosystem Alignment section, linking closely with [What is otelsql?](../product-intro-core-value/what-is-otelsql) and [Architecture & Data Flow](../architecture-concepts/architecture-and-data-flow).**
+
+
+---
+
+## See Also
+
+- [otelsql Main Documentation](https://github.com/XSAM/otelsql)
+- [Release Policy - Go](https://golang.org/doc/devel/release#policy)
+- [Overview: What is otelsql?](../product-intro-core-value/what-is-otelsql)
+- [Installing otelsql](../../getting-started/setup-installation/installation)
+- [Quick Validation & Troubleshooting](../../getting-started/configuration-usage/quick-validation-troubleshooting)

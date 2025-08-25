@@ -1,0 +1,171 @@
+---
+title: "Configuration Basics"
+description: "Explains core configuration steps after installing otelsql. Covers setting essential environment variables, understanding semantic convention stability options, and preparing the application for first use."
+---
+
+# Configuration Basics
+
+This page guides you through the essential configuration steps required after installing `otelsql`. By completing the core setup here, you prepare your Go application to generate rich telemetry through tracing and metrics for database/sql interactions.
+
+---
+
+## 1. Set Essential Environment Variables
+
+`otelsql` uses environment variables to determine configuration defaults, particularly for semantic conventions.
+
+- **`OTEL_SEMCONV_STABILITY_OPT_IN`**: This environment variable controls which semantic conventions are emitted by `otelsql`.
+
+  - Supported values:
+    - `""` (empty) or `none` – No semantic conventions are emitted.
+    - `database/dup` – Emits duplicated semantic conventions compatible with legacy and new standards.
+    - `database` – Emits the stable semantic conventions.
+
+### How to set it:
+
+On Linux/macOS terminal:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database
+```
+
+On Windows PowerShell:
+
+```powershell
+setx OTEL_SEMCONV_STABILITY_OPT_IN "database"
+```
+
+<Tip>
+Setting this env var ensures your instrumentation aligns with the semantic convention stability level your observability backend supports.
+</Tip>
+
+---
+
+## 2. Configure `otelsql` Through Environment or Code
+
+`otelsql` initializes configuration dynamically. Key options are derived from environment variables, but you can override them programmatically.
+
+### Default Behavior
+
+- Tracing and metrics instruments are created automatically using OpenTelemetry providers (TracerProvider, MeterProvider).
+- The default semantic convention stability is set to **stable** unless overridden by `OTEL_SEMCONV_STABILITY_OPT_IN`.
+- A span naming function uses the SQL method (e.g., `Query`, `Exec`) as default span names.
+
+### Customize With Code
+
+When initializing `otelsql` in your Go application, you can set:
+
+- `SpanOptions` to enable behaviors like tracing `Ping` calls or suppressing some error events.
+- Additional attributes to add metadata to spans and metrics.
+- Enable context propagation with `SQLCommenterEnabled` (experimental).
+
+Example:
+
+```go
+import (
+	"database/sql"
+	"github.com/XSAM/otelsql"
+	"go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+func main() {
+	// Wrap your driver with otelsql with custom options
+	// Example: Adding MySQL system attribute and enabling Ping span
+	db, err := otelsql.Open(
+		"mysql", // driver name
+		"user:password@tcp(localhost:3306)/dbname",
+		otelsql.WithAttributes(semconv.DBSystemMySQL),
+		otelsql.WithSpanOptions(otelsql.SpanOptions{Ping: true}),
+	)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// use db as normal
+}
+```
+
+---
+
+## 3. Understand Semantic Convention Stability Options
+
+Semantic conventions define how telemetry attributes are named and structured. The choice affects compatibility and integration with observability backends.
+
+| Option             | Behavior                                                         | Recommended For                      |
+|--------------------|------------------------------------------------------------------|------------------------------------|
+| `none` (empty)     | No semantic conventions emitted (default simplification).        | Minimal or legacy setups            |
+| `database/dup`     | Emits both legacy and new duplicate attributes for compatibility.| Transition phases and compatibility|
+| `database`         | Emits stable semantic conventions only (current best practice).  | New projects with up-to-date backends|
+
+Changing this opt-in will adjust which attributes are added to spans and metrics, including raw SQL statements and connection info.
+
+<Warning>
+If your observability backend requires specific semantic conventions, explicitly set `OTEL_SEMCONV_STABILITY_OPT_IN` before starting your application.
+</Warning>
+
+---
+
+## 4. Prepare the Application for First Use
+
+### Summary Checklist
+
+Before running your instrumented application:
+
+- Confirm that `otelsql` is installed and wrapped around your database driver.
+- Set `OTEL_SEMCONV_STABILITY_OPT_IN` environment variable as needed.
+- Configure any span options, attributes, or experimental features programmatically.
+
+### Running the Application
+
+Simply run your Go application as usual. `otelsql` will emit traces and metrics based on your configuration.
+
+### Verify the Configuration
+
+- You can log or debug the active configuration by inspecting the underlying config in `otelsql` (for developers).
+- Check your observability backend to ensure spans/metrics appear with the expected attributes.
+
+<Check>
+Validation tip: Use a sample query to verify that spans have named attributes, including the `db.system` and `db.query.text`, matching your semantic convention opt-in.
+</Check>
+
+---
+
+## 5. Best Practices and Common Pitfalls
+
+- **Do not ignore semantic convention settings:** Correct semantic convention usage ensures your telemetry is meaningful and compatible across tools.
+- **Use environment variables for consistency:** Managing `OTEL_SEMCONV_STABILITY_OPT_IN` via env vars promotes uniform behavior across environments.
+- **Avoid excessive spans:** Enable SpanOptions like `Ping` or `RowsNext` only if you need detailed tracing to avoid performance overhead.
+- **Enable SQLCommenter carefully:** This experimental feature injects SQL comments that help propagate context but might alter query logs.
+
+<Tip>
+Keep your instrumentation as simple as possible at first, then tune configuration options gradually once basic tracing is verified.
+</Tip>
+
+---
+
+## 6. Troubleshooting Configuration Issues
+
+<AccordionGroup title="Common Configuration Issues and Solutions">
+<Accordion title="No spans or metrics are visible after setup">
+Ensure your OpenTelemetry SDK and exporters are correctly configured alongside `otelsql`. Verify that your application is actually executing database/sql calls wrapped by `otelsql`.
+</Accordion>
+<Accordion title="Semantic attributes missing or inconsistent">
+Verify the environment variable `OTEL_SEMCONV_STABILITY_OPT_IN` is set correctly before starting your app. Restart your app after setting it as environment variables are read only at startup.
+</Accordion>
+<Accordion title="SQLCommenter configuration not effective">
+SQLCommenter is experimental. Enable it explicitly via your `otelsql` configuration flags and test carefully, as some drivers or database proxies may alter or drop SQL comments.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 7. Additional References
+
+- [Installing otelsql](/getting-started/setup-installation/installation) – Installation steps before configuration.
+- [First otelsql Integration](/getting-started/configuration-usage/first-otel-instrumentation) – How to apply the configuration and instrument your actual code.
+- [Semantic Conventions and Stability Levels](/api-reference/advanced-reference/semantic-conventions) – Deep dive into semantic conventions used by `otelsql`.
+- [Quick Validation & Troubleshooting](/getting-started/configuration-usage/quick-validation-troubleshooting) – Tips to verify and fix common issues.
+
+---
+
+By following these core setup steps, you'll have your application configured to leverage `otelsql`'s instrumentation capabilities, enabling meaningful telemetry insights into your database usage.

@@ -1,0 +1,228 @@
+---
+title: "First otelsql Integration"
+description: "Demonstrates how to instrument a database/sql connection using otelsql. Covers methods like otelsql.Open and otelsql.Register and practical code snippets for immediate results."
+---
+
+# First otelsql Integration
+
+Welcome to otelsql, the specialized OpenTelemetry instrumentation library for Go's `database/sql` package. This guide walks you through the essential steps to instrument your database/sql connections using otelsql, enabling automatic tracing and metrics collection for your SQL operations. Whether you are just starting out or integrating otelsql into an existing project, these instructions provide practical, clear, and immediately actionable examples.
+
+---
+
+## 1. Understanding otelsql Instrumentation Basics
+
+otelsql offers multiple ways to instrument `database/sql` in Go, tailoring to different integration preferences:
+
+- **`otelsql.Open`** - Opens a new database connection with instrumentation applied.
+- **`otelsql.OpenDB`** - Wraps an existing `driver.Connector` with instrumentation and returns a database handle.
+- **`otelsql.Register`** - Registers a new instrumented driver based on an existing database driver.
+- **`otelsql.WrapDriver`** - Wraps a SQL driver directly to insert telemetry.
+
+After establishing instrumentation, use **`otelsql.RegisterDBStatsMetrics`** to register connection pool statistics as metrics.
+
+This guide primarily focuses on `otelsql.Open` and `otelsql.Register`, the two most straightforward integration methods.
+
+---
+
+## 2. Prerequisites
+
+Before proceeding, ensure you meet these requirements:
+
+- Go environment set up and configured.
+- Familiarity with basic `database/sql` usage in Go.
+- Access credentials (DSN) for your SQL database.
+- The desired database driver registered (e.g., `github.com/go-sql-driver/mysql`).
+
+Make sure to install the otelsql package if you haven't:
+
+```bash
+go get github.com/XSAM/otelsql
+```
+
+---
+
+## 3. Instrumenting with `otelsql.Open`
+
+The simplest method to add telemetry is to replace your normal `sql.Open` call with `otelsql.Open`. This instruments the driver transparently.
+
+### Steps:
+
+1. **Import otelsql and required dependencies:**
+
+```go
+import (
+	"database/sql"
+
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+
+	"github.com/XSAM/otelsql"
+	_ "github.com/go-sql-driver/mysql" // Or your driver
+)
+```
+
+2. **Open your database connection using `otelsql.Open`:**
+
+```go
+const mysqlDSN = "root:your_password@tcp(your_host)/your_db?parseTime=true"
+
+func main() {
+	db, err := otelsql.Open("mysql", mysqlDSN, otelsql.WithAttributes(
+		semconv.DBSystemMySQL,
+	))
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Use db as usual
+}
+```
+
+### What happens here?
+- The call wraps the standard driver with otelsql’s instrumentation.
+- Custom attributes like database system info are added automatically for better trace and metric context.
+
+---
+
+## 4. Instrumenting with `otelsql.Register` and Using Registered Driver
+
+This approach explicitly registers a new driver name, which you can then use as the driver name in your normal `Open` calls.
+
+### Steps:
+
+1. **Register an instrumented driver from an existing driver name:**
+
+```go
+func init() {
+	driverName, err := otelsql.Register("mysql")
+	if err != nil {
+		panic(err)
+	}
+
+	// Now use driverName for Open
+	db, err := otelsql.Open(driverName, mysqlDSN)
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Use db as usual
+}
+```
+
+Note: `Register` returns a newly generated driver name such as `mysql-otelsql-0`.
+
+### Why use `Register`?
+- It allows fine control when you want to instrument the driver once and reference it multiple times.
+- Supports adding custom attributes or options during registration.
+
+---
+
+## 5. Registering Database Statistics Metrics
+
+To gain insights into your database connection pool's health and activity, use `RegisterDBStatsMetrics`.
+
+### Usage:
+
+```go
+err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
+	semconv.DBSystemMySQL,
+))
+if err != nil {
+	panic(err)
+}
+```
+
+**Outcome:**
+- Metrics such as open connections, wait times, and closed connections due to max idle/lifetime settings are recorded.
+- Metrics follow OpenTelemetry semantic conventions and integrate with your metrics backend.
+
+---
+
+## 6. Complete Example: Open and Register Metrics
+
+```go
+package main
+
+import (
+	"database/sql"
+	"log"
+
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+
+	"github.com/XSAM/otelsql"
+	_ "github.com/go-sql-driver/mysql"
+)
+
+const mysqlDSN = "root:otel_password@tcp(localhost)/db?parseTime=true"
+
+func main() {
+	db, err := otelsql.Open("mysql", mysqlDSN, otelsql.WithAttributes(
+		semconv.DBSystemMySQL,
+	))
+	if err != nil {
+		log.Fatalf("failed to open db: %v", err)
+	}
+	defer db.Close()
+
+	err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
+		semconv.DBSystemMySQL,
+	))
+	if err != nil {
+		log.Fatalf("failed to register DB stats metrics: %v", err)
+	}
+
+	// Perform your DB operations as usual
+}
+```
+
+---
+
+## 7. Practical Tips & Common Pitfalls
+
+- **Driver Registration Limit:** The internal `Register` maintains a max slot limit (currently 1). Attempting to register multiple instrumented drivers with the same name will yield an error.
+
+- **Attribute Usage:** Utilize `WithAttributes` to tag spans and metrics with meaningful information such as `db.system`, `db.name`, or custom attributes.
+
+- **Error Handling:** otelsql automatically records error types in spans (if using stable semantic conventions), providing detailed telemetry on database errors.
+
+- **SQLCommenter Experimental Feature:** Enables propagation of trace context through SQL comments to support correlation in downstream systems. Use `WithSQLCommenter` option to enable.
+
+- **Metrics Stability:** Use the environment variable `OTEL_SEMCONV_STABILITY_OPT_IN` to opt into new semantic conventions gradually.
+
+---
+
+## 8. Troubleshooting
+
+- **No spans or metrics visible?** Ensure your OpenTelemetry TracerProvider and MeterProvider are properly initialized and set globally.
+
+- **Driver registration errors?** Confirm you are not exceeding the allowed registrations of instrumented drivers.
+
+- **Connection issues?** Validate DSN correctness and database availability.
+
+- **Attribute missing?** Check if attributes are passed correctly via `WithAttributes` or custom getters.
+
+Refer to the [Quick Validation & Troubleshooting guide](/getting-started/configuration-usage/quick-validation-troubleshooting) for detailed diagnostics.
+
+---
+
+## 9. Next Steps
+
+- Explore deeper configuration in the [Configuration Basics page](/getting-started/configuration-usage/basic-configuration).
+- Run and experiment with local examples provided in the documentation for hands-on learning.
+- Visualize telemetry data using OpenTelemetry Collector integrations with backend systems like Jaeger and Prometheus.
+
+---
+
+## References & Further Reading
+
+- [otelsql GoDoc Reference](https://pkg.go.dev/github.com/XSAM/otelsql)
+- [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions)
+- [Example: OTEL Collector Integration](../example/otel-collector/README.md)
+- [Full API Reference: Option Configuration](../../api-reference/core-api/option-configuration)
+
+---
+
+With this integration, you gain immediate visibility into your SQL operation performance and errors, paving the way for powerful observability and optimization.
+
+Welcome to a new era of comprehensive Go database instrumentation with otelsql.

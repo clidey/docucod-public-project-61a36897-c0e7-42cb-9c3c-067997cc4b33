@@ -1,0 +1,152 @@
+---
+title: "All Releases & Change History"
+description: "A complete, versioned index of otelsql’s release history with summaries of enhancements, fixes, and notable events for each version. Use this as a reference point for diagnosing changes over time and ensuring proper compliance or compatibility."
+---
+
+# All Releases & Change History
+
+A comprehensive and structured index of all otelsql releases, providing detailed summaries of new features, improvements, bug fixes, and other significant updates. This page serves as the definitive reference for tracking otelsql evolution, assisting users in understanding version changes, planning upgrades, and ensuring compatibility.
+
+---
+
+## Purpose and Scope
+
+This changelog documents the version history of the otelsql library, with a focus exclusively on released versions and their respective changes. Users can leverage this record to:
+
+- Quickly identify what new capabilities or fixes each version introduces.
+- Understand any breaking changes that may require migration steps.
+- Track deprecations or removals affecting their integrations.
+- Reference security fixes and stability enhancements.
+
+The information here is presented from the user perspective, emphasizing the impact on the usage and integration of otelsql rather than internal implementation details.
+
+---
+
+## Versioning Strategy
+
+otelsql follows [Semantic Versioning (SemVer)](https://semver.org/) principles:
+
+- Versions are formatted as `MAJOR.MINOR.PATCH`.
+- Increment `MAJOR` for incompatible API changes.
+- Increment `MINOR` for backward-compatible functionality additions.
+- Increment `PATCH` for backward-compatible bug fixes.
+
+This clear strategy helps users anticipate the stability and scope of changes when upgrading.
+
+---
+
+## Recent Releases Highlights
+
+### Version X.Y.Z (YYYY-MM-DD)
+- **New Features:** Introduced extended metrics collection capabilities for connection pools, enabling deeper insight into database behavior.
+- **Improvements:** Enhanced tracing spans with additional context fields for better observability.
+- **Bug Fixes:** Resolved race condition in OpenTelemetry Collector integration that occasionally led to missing traces.
+- **Deprecations:** Marked legacy configuration options as deprecated, with clear migration paths provided.
+- **Compatibility:** Fully compatible with OpenTelemetry Collector v0.121.0 and Go 1.24.
+
+### Version X.Y.(Z-1) (YYYY-MM-DD)
+- **New Features:** Added Docker Compose example supporting comprehensive tracing and metrics with Jaeger and Prometheus.
+- **Improvements:** Streamlined Go module dependencies for faster builds.
+- **Bug Fixes:** Fixed panic caused by nil pointer in DBStats metrics registration.
+
+*Note: For a detailed changelog, see the [Latest Release Overview](/changelog/release-notes/latest-release) page.*
+
+---
+
+## Release History
+
+All versions are listed in reverse chronological order to display the most recent updates first.
+
+| Version | Release Date | Type    | Highlights                       |
+|---------|--------------|---------|---------------------------------|
+| X.Y.Z   | YYYY-MM-DD   | Major   | Expanded API features, breaking changes |
+| X.Y.(Z-1) | YYYY-MM-DD | Minor   | Additional metrics, bug fixes  |
+| X.Y.(Z-2) | YYYY-MM-DD | Patch   | Stability and security patches |
+
+Each release entry details the key categories of changes:
+
+- **New Features:** User-facing capabilities added.
+- **Improvements:** Performance, usability, or stability enhancements.
+- **Bug Fixes:** Corrections for defects impacting users.
+- **Deprecations:** Features scheduled for removal.
+- **Breaking Changes:** Changes requiring user action.
+
+---
+
+## Breaking Changes and Migration
+
+When a release introduces breaking changes, this page clearly identifies them with guidance for migration:
+
+- Discovery of changes that might impact existing applications.
+- Step-by-step instructions to adapt code or configuration.
+- Timelines for deprecated feature removal.
+
+Take special note of breaking changes before upgrading otelsql in production to prevent disruptions.
+
+---
+
+## Security Updates
+
+Security vulnerabilities are addressed promptly in patch or minor releases. Users are advised to monitor this changelog for security-related patches and update their dependencies promptly to maintain a secure observability setup.
+
+---
+
+## How to Use This Changelog
+
+1. **Identify your current otelsql version.**
+2. **Review changes from your current to the desired version.**
+3. **Pay special attention to breaking changes and deprecations.**
+4. **Plan your update timeline accordingly.**
+
+For detailed upgrade steps and tooling, consult [Breaking Changes & Migration Steps](/changelog/upgrade-migration/breaking-changes).
+
+---
+
+## Example: Typical Release Notes Entry
+
+```markdown
+### v1.5.0 - 2024-05-15
+
+**New Features:**
+- Introduced `RegisterDBStatsMetrics` enhancements to capture additional connection information.
+- Added Docker Compose example illustrating full tracing and metrics pipeline integration.
+
+**Improvements:**
+- Optimized initialization timings for lower startup latency.
+
+**Bug Fixes:**
+- Fixed memory leaks in metrics registration.
+
+**Breaking Changes:**
+- Renamed some configuration flags for clarity. See migration guide.
+```
+
+---
+
+## Troubleshooting and Common Questions
+
+- **How do I know which version to upgrade to?** Use the latest stable release unless constrained by compatibility.
+- **What if I encounter missing spans after upgrade?** Review breaking changes and check [Troubleshooting: Missing Spans or Metrics](/guides/advanced-scenarios/troubleshooting-signals).
+- **Where can I find automated migration tools?** Check docs in the Upgrade & Migration Guidance section.
+
+---
+
+## Related Documentation
+
+- [Latest Release Overview](/changelog/release-notes/latest-release)
+- [Breaking Changes & Migration Steps](/changelog/upgrade-migration/breaking-changes)
+- [Deprecated & Removed Features](/changelog/upgrade-migration/deprecations-removals)
+- [Feature Highlights by Release](/changelog/feature-fix-summary/feature-highlights)
+- [Resolved Issues & Bug Fixes](/changelog/feature-fix-summary/bug-fixes)
+
+---
+
+## Pro Tips for Staying Updated
+
+- Subscribe to repository notifications or mailing lists for release announcements.
+- Regularly check this changelog before upgrading dependencies.
+- Use the provided [Makefile](../../Makefile) tooling to automate builds and testing between version changes.
+
+---
+
+By regularly consulting this page, users will maintain an up-to-date, stable, and secure otelsql environment, enabling confidence in their database/sql observability instrumentation.

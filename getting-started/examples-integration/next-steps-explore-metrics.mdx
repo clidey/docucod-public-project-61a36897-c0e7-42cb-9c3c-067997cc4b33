@@ -1,0 +1,126 @@
+---
+title: "Next Steps: Explore Metrics & Traces"
+description: "Directs users to further validate their setup by connecting to Prometheus and Jaeger, as demonstrated in the examples. Suggests exploratory paths and learning resources for deeper adoption."
+---
+
+# Next Steps: Explore Metrics & Traces
+
+This page helps you validate your otelsql setup by connecting to the Prometheus and Jaeger observability tools as demonstrated in the example. It also guides you toward exploratory paths and learning resources for deeper adoption of otelsql's tracing and metrics capabilities.
+
+---
+
+## 1. Validate Your Setup with Prometheus and Jaeger
+
+After running the otelsql example using Docker Compose, verify that your instrumentation is correctly sending metrics and traces.
+
+### Step 1: Access Prometheus to Review Metrics
+
+1. Open your web browser and go to [http://localhost:9090](http://localhost:9090).
+2. Use Prometheus’s **Expression Browser** to query metrics related to your database.
+
+   For instance, try querying `db_sql_connection_open` or `db_sql_latency` to see live metrics collected by otelsql.
+
+3. If you see metric data returning values, your metrics pipeline from otelsql through the OpenTelemetry Collector to Prometheus is functioning correctly.
+
+### Step 2: Access Jaeger UI to View Traces
+
+1. Open your web browser and visit [http://localhost:16686](http://localhost:16686).
+2. In the Jaeger UI, select the service name `otesql-example` from the dropdown menu.
+3. Click **Find Traces** to search for recent trace spans representing your database queries.
+
+4. Inspect individual traces to understand timing, attributes, and parent-child relationships of your SQL operations.
+
+<Tip>
+Be sure the Docker Compose setup is running and healthy before accessing these interfaces. Use `docker compose ps` and `docker compose logs client` to confirm.
+</Tip>
+
+---
+
+## 2. Explore Telemetry Data
+
+With metrics and traces verified, you can start exploring the rich data collected by otelsql:
+
+- **Metrics to Monitor Database Health and Usage:** Track connection counts, wait times, and query latency metrics exposed by the instrumentation.
+- **Traces to Understand Query Behavior:** Visualize when and how SQL queries execute in your application context.
+
+Both data sources give complementary insight, helping you pinpoint bottlenecks or optimize SQL usage.
+
+---
+
+## 3. Suggested Exploratory Paths
+
+Now that you see data flowing, consider diving deeper into these areas:
+
+### A. Review and Modify Example Code
+
+- Examine the [example/otel-collector/main.go](https://github.com/XSAM/otelsql/blob/main/example/otel-collector/main.go) file to understand how the OpenTelemetry APIs and otelsql integration work.
+- Experiment with adding new queries or simulating database loads to see effects in metrics and tracing.
+
+### B. Customize OpenTelemetry Collector Configuration
+
+- Explore and tweak the [example/otel-collector/otel-collector.yaml](https://github.com/XSAM/otelsql/blob/main/example/otel-collector/otel-collector.yaml) to modify collectors, processors, and exporters.
+- Add or remove exporters or processors to fit your backend needs or optimize performance.
+
+### C. Extend Metrics Collection
+
+- Use the API to register or customize additional metrics, such as per-statement or database statistics metrics.
+- Refer to [Instrumenting Metrics with RegisterDBStatsMetrics](/api-reference/core-api/metrics-instrumentation) for advanced instrumentation.
+
+---
+
+## 4. Learning Resources and Next Steps
+
+To deepen your understanding and adoption of otelsql, consider these next steps:
+
+- **Guides:** Read [First otelsql Integration](/getting-started/configuration-usage/first-otel-instrumentation) to master basic integration patterns.
+- **Troubleshooting:** Visit [Quick Validation & Troubleshooting](/getting-started/configuration-usage/quick-validation-troubleshooting) to solve common setup issues.
+- **Advanced Scenarios:** Explore [Sending Telemetry to the OpenTelemetry Collector](/guides/advanced-scenarios/otel-collector-integration) for deployment in complex environments.
+- **Best Practices:** Review [Recommended Instrumentation Patterns](/guides/best-practices/instrumentation-patterns) to optimize accuracy and performance.
+
+---
+
+## 5. Shutting Down the Example
+
+When you finish exploring, stop all running services gracefully:
+
+```sh
+docker compose down
+```
+
+This command stops and removes containers started for the example, freeing your system resources.
+
+---
+
+## Troubleshooting Tips
+
+- **No Metrics in Prometheus:** Ensure the OpenTelemetry Collector is running and scraping metrics at port `9090`.
+- **No Traces in Jaeger:** Confirm all services are connected, especially the otel-collector exporting to Jaeger’s endpoint at port `16686`.
+- **Docker Compose Errors:** Check container logs using `docker compose logs` for any startup failures or missed dependencies.
+
+<Tip>
+If the `client` container never finishes or logs errors, the MySQL database might still be initializing or have connection issues. Confirm the MySQL service health using `docker compose ps`.
+</Tip>
+
+---
+
+Your journey into otelsql observability starts here. With metrics and traces verified, you are ready to integrate otelsql in your applications, customize data collection, and leverage rich OpenTelemetry ecosystems for informed database insights.
+
+---
+
+## References
+
+- [otelsql GitHub Repository](https://github.com/XSAM/otelsql)
+- [Example: otel-collector Setup](https://github.com/XSAM/otelsql/tree/main/example/otel-collector)
+- [Prometheus Official Documentation](https://prometheus.io/docs/prometheus/latest/getting_started/)
+- [Jaeger Official Documentation](https://www.jaegertracing.io/docs/latest/)
+
+---
+
+## Navigation
+
+- [First otelsql Integration](/getting-started/configuration-usage/first-otel-instrumentation)
+- [Quick Validation & Troubleshooting](/getting-started/configuration-usage/quick-validation-troubleshooting)
+- [Sending Telemetry to the OpenTelemetry Collector](/guides/advanced-scenarios/otel-collector-integration)
+- [Recommended Instrumentation Patterns](/guides/best-practices/instrumentation-patterns)
+
+

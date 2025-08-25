@@ -1,0 +1,189 @@
+---
+title: "Error Handling and Attribution"
+description: "Documents how errors from driver and application code are handled, how error.type is determined, and how this appears in metrics and spans. Outlines support for standard, custom, and built-in error types, and clarifies requirements for error attribute emission."
+---
+
+# Error Handling and Attribution
+
+Errors are inevitable in database interactions, and observability requires clear, actionable insights into these errors. This page details how otelsql handles errors that originate from the database driver or application code, how error types are classified and attributed, and how they manifest within your telemetry metrics and spans.
+
+---
+
+## Understanding Error Attribution in otelsql
+
+otelsql integrates tightly with OpenTelemetry to record errors as part of trace spans and metrics. Correct attribution of error types is essential for understanding root causes and prioritizing fixes.
+
+### Key Concepts
+
+- **Error Types**: otelsql identifies and classifies errors by their Go type (e.g., standard `error`, driver-defined errors like `driver.ErrSkip`, or custom user errors).
+- **Span Error Recording**: Errors cause the active span to be marked with an error status and include error details.
+- **Metrics Error Tags**: Metrics emitted include attributes that distinguish between OK and error states, including error type details.
+
+---
+
+## How Errors are Handled in Spans
+
+Every database operation can produce an error, and otelsql uses the following process to reflect errors in tracing spans:
+
+- If an error is `nil`, the span remains unmarked for errors.
+- If the error is `driver.ErrSkip`, it is treated specially:
+  - If the `DisableErrSkip` option is **not** set, spans record this error as an error.
+  - If `DisableErrSkip` is set, the span does **not** record the error.
+- For all other errors, spans are marked with error status and record the error details.
+
+### Span Error Recording Behavior
+
+```go
+func recordSpanError(span trace.Span, opts SpanOptions, err error) {
+    if span == nil { return }
+    if opts.RecordError != nil && !opts.RecordError(err) { return }
+
+    switch {
+    case err == nil:
+        return
+    case errors.Is(err, driver.ErrSkip):
+        if !opts.DisableErrSkip {
+            span.RecordError(err)
+            span.SetStatus(codes.Error, "")
+        }
+    default:
+        span.RecordError(err)
+        span.SetStatus(codes.Error, "")
+    }
+}
+```
+
+#### Practical Notes:
+- You can customize error recording with the `RecordError` option callback.
+- By default, `driver.ErrSkip` behaves as an error; set `DisableErrSkip` to ignore it.
+
+---
+
+## Error Attributes in Metrics
+
+otelsql emits metrics that reflect database operation durations, annotated with error attributes when applicable.
+
+- Errors add specific `error.type` attributes that identify the concrete Go error type (e.g., `*errors.errorString` for standard errors).
+- When `driver.ErrSkip` is treated as an error (default), the error type is included in metrics.
+- If skip error measurement is disabled (`DisableSkipErrMeasurement` option), metrics attribute the status as "ok" even if the error is `driver.ErrSkip`.
+
+### Example Metric Attributes:
+- Without error:
+  ```
+  db.operation.name = "ConnQuery"
+  status = "ok"
+  ```
+- With an application error:
+  ```
+  db.operation.name = "ConnQuery"
+  status = "error"
+  error.type = "*errors.errorString"
+  ```
+- With `driver.ErrSkip` and default settings:
+  ```
+  db.operation.name = "ConnQuery"
+  status = "error"
+  error.type = "database/sql/driver.ErrSkip"
+  ```
+
+If skip error measurement is disabled, the status attribute will be "ok" and no error.type attribute included for `driver.ErrSkip` errors.
+
+---
+
+## Supporting Standard, Custom, and Built-in Errors
+
+The error handling system of otelsql is designed to be fully compatible with:
+
+- **Standard library errors** such as those created via `errors.New`, `fmt.Errorf`, or wrapped errors.
+- **Built-in driver errors** like `driver.ErrSkip`.
+- **Custom user-defined errors** that implement the error interface.
+
+This broad support ensures that almost any error returned during database interactions is correctly captured and attributed.
+
+---
+
+## Requirements for Emitting Error Attributes
+
+To ensure error attributes are emitted consistently:
+
+- Use the standard error interface (`error`) for your application errors.
+- Avoid suppressing errors unintentionally (unless desired via options).
+- If you use `driver.ErrSkip`, consider whether it should be treated as an error via `DisableErrSkip` and `DisableSkipErrMeasurement` options.
+
+These practices help make error telemetry meaningful and actionable.
+
+---
+
+## Common Pitfalls and Troubleshooting
+
+### Pitfall: Missing Error Attributes
+If your metrics or spans do not show expected error attributes, check:
+
+- Whether your app or driver actually returns errors as `error` interface values.
+- If `DisableErrSkip` or `DisableSkipErrMeasurement` options are hiding errors like `driver.ErrSkip`.
+- Any custom `RecordError` function that may filter out error recording.
+
+### Pitfall: Unexpected Error Status on `driver.ErrSkip`
+By default, `driver.ErrSkip` marks spans and metrics as errors. Set the relevant option to disable this behavior if `ErrSkip` isn't actual error in your context.
+
+---
+
+## Example Workflow: Recording an Error in a Database Query Span
+
+```go
+ctx, span := createSpan(ctx, cfg, MethodConnQuery, true, query, args)
+
+// Execute the query and get error
+err := db.QueryContext(ctx, query, args...)
+
+// Record the error in the span and metrics
+recordSpanError(span, cfg.SpanOptions, err)
+recordMetric(ctx, cfg.Instruments, cfg, MethodConnQuery, query, args)(err)
+
+span.End()
+```
+
+This ensures your telemetry reflects operation duration, success or failure, and error details.
+
+---
+
+## Summary
+| Behavior                     | Error Type                  | Span Status | Metric status | Error Attributes in Metrics |
+|-----------------------------|-----------------------------|-------------|---------------|-----------------------------|
+| No error                    | nil                         | Unset       | ok            | None                        |
+| Typical error               | any error except driver.ErrSkip | Error       | error         | Present                     |
+| driver.ErrSkip, default     | driver.ErrSkip              | Error       | error         | Present                     |
+| driver.ErrSkip, disabled    | driver.ErrSkip              | Unset       | ok            | None                        |
+
+---
+
+## See Also
+- [Instrumenting database/sql](https://your-docs-path/api-reference/core-api/instrumenting-database) - Learn how error handling fits into full instrumentation.
+- [Options and Configuration](https://your-docs-path/api-reference/core-api/option-configuration) - Customize error recording behavior.
+- [Semantic Conventions and Stability Levels](https://your-docs-path/api-reference/advanced-reference/semantic-conventions) - Understand error attribute naming.
+- [Troubleshooting: Missing Spans or Metrics](https://your-docs-path/guides/advanced-scenarios/troubleshooting-signals)- Tips on resolving telemetry issues including error attribution.
+
+---
+
+## Troubleshooting Checklist
+
+<AccordionGroup title="Common Error Handling Issues">
+<Accordion title="Error attributes not appearing in metrics">
+- Confirm errors are properly returned as `error` values.
+- Verify that no RecordError callback is suppressing error recording.
+- Check settings for `DisableSkipErrMeasurement` if errors are `driver.ErrSkip`.
+</Accordion>
+<Accordion title="Spans not marked as errors when expected">
+- Confirm that `recordSpanError` is called with the error.
+- If using `driver.ErrSkip`, check if `DisableErrSkip` is enabled.
+- Validate that the tracing SDK is correctly configured to record errors.
+</Accordion>
+<Accordion title="Custom errors not showing detailed error.type">
+- Ensure custom error types implement `Error()` properly.
+- They will be reflected as the concrete type name in `error.type` attribute.
+</Accordion>
+</AccordionGroup>
+
+---
+
+With this understanding, you can confidently interpret and enhance the error telemetry otelsql provides, enabling more effective monitoring and troubleshooting of your Go applications' database interactions.

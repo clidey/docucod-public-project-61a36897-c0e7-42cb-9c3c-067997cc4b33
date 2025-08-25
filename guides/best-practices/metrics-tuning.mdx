@@ -1,0 +1,153 @@
+---
+title: "Optimizing Metrics & Performance Impact"
+description: "Best practices for tuning metric collection, limiting overhead, and minimizing impact on application performance. Covers connection statistics, attribute selection, and exporting strategies."
+---
+
+# Optimizing Metrics & Performance Impact
+
+Efficient metric collection is critical to maintaining application responsiveness while gaining observability insights. This guide focuses on proven best practices to tune otelsql's metric instrumentation, reduce overhead, and optimize performance when monitoring Go's database/sql package. You will learn how to balance comprehensive telemetry against application impact through connection statistics metrics, attribute optimization, and exporting strategies.
+
+---
+
+## 1. Understanding Metric Instrumentation Overhead
+
+When instrumenting your database/sql usage with otelsql, metrics collection inevitably adds some runtime overhead due to telemetry data gathering, attribute processing, and exporting. Awareness of where costs arise helps optimize your setup.
+
+- **Connection Statistics Metrics:** Periodic gauges and counters reporting on connection pool state impose continuous measurement costs.
+- **Query Attributes:** Custom and default attribute collection on each query span can increase CPU usage and memory allocation.
+- **Metric Exporting:** Frequent metric flushes to exporters (e.g., Prometheus) can add network and aggregation overhead.
+
+Balancing these factors is key to achieving good observability without degrading application performance.
+
+---
+
+## 2. Best Practices for Connection Statistics Metrics
+
+otelsql supports detailed connection pool statistics metrics (e.g., open connections, wait count, closed connections), which provide vital insight but can be tuned for efficiency.
+
+### Recommended Approach
+
+- **Enable Connection Stats Metrics Selectively:** Only enable when detailed pool state is necessary for your diagnostics.
+
+- **Sampling Interval:** Adjust your metric scraping intervals (e.g., Prometheus scrape frequency) to avoid excessive overhead. Typical intervals range from 15s to 60s.
+
+- **Avoid Redundant Instrumentation:** Do not duplicate connection metrics collection by also instrumenting connection pools manually.
+
+### Example
+
+To register connection statistics metrics efficiently:
+
+```go
+// Register connection stats metrics with default meter
+err := otelsql.RegisterDBStatsMetrics(db, meter)
+if err != nil {
+    log.Fatalf("failed to register metrics: %v", err)
+}
+```
+
+> This setup automatically uses Int64ObservableGauges and Counters optimized for minimal overhead.
+
+---
+
+## 3. Attribute Selection and Customization
+
+Attributes attached to spans and metrics provide rich context but come at a performance cost proportional to their number and complexity.
+
+### Tips for Effective Attribute Management
+
+- **Limit Custom Attributes:** Only attach attributes essential for troubleshooting or valuable telemetry aggregation.
+
+- **Reuse Attribute Instances:** Implement attribute caching or factory methods to reduce repeated allocations.
+
+- **Opt Into Stable Semantic Conventions:** Using otelsql's option to opt-in to OpenTelemetry semantic conventions helps unify attribute usage, reducing duplication.
+
+- **Use AttributesGetter Function:** Customize attribute collection by implementing `AttributesGetter(ctx, method, query, args)` to filter or enrich attributes based on need.
+
+### Example: Custom AttributesGetter
+
+```go
+cfg := otelsql.DriverConfig{
+    AttributesGetter: func(ctx context.Context, method otelsql.Method, query string, args []driver.NamedValue) []attribute.KeyValue {
+        return []attribute.KeyValue{
+            attribute.String("app.custom_attribute", "example_value"),
+        }
+    },
+}
+```
+
+This selective approach minimizes performance impact by avoiding unnecessary attribute processing.
+
+---
+
+## 4. Exporting Strategies and Metric Aggregation
+
+Metric exporting frequency and aggregation affect runtime overhead and observability timeliness.
+
+### Key Recommendations
+
+- **Leverage Batch Processors:** Configure OpenTelemetry Collector or Prometheus exporters with batch processing and memory limiters to optimize export throughput.
+
+- **Tune Export Intervals:** Balance export frequency with cost; less frequent exports reduce overhead but increase data latency.
+
+- **Avoid High Cardinality Metrics:** Excessive label cardinality can dramatically increase metrics storage and CPU usage.
+
+- **Use Exporter-Specific Features:** Prometheus supports scraping optimizations, and OTLP exporters benefit from compression and protocol tuning.
+
+### Sample OpenTelemetry Collector Processor Section
+
+```yaml
+processors:
+  batch:
+  memory_limiter:
+    limit_percentage: 75
+    check_interval: 1s
+```
+
+This example shows safe memory-limiting processors reducing exporter overhead.
+
+---
+
+## 5. Monitoring and Troubleshooting Performance Impact
+
+Continuous monitoring and prompt troubleshooting help maintain optimal application behavior.
+
+### Signs of Excessive Overhead
+
+- Increased garbage collection pauses
+- Elevated CPU utilization correlated with telemetry processing
+- Latency spikes in database calls
+
+### Troubleshooting Steps
+
+- Profile your application to identify telemetry-related hotspots.
+- Temporarily disable detailed metrics or attributes to isolate impact.
+- Adjust scraping and export intervals.
+- Review attribute cardinality and prune excessive tags.
+
+<Tip>
+Use Go profiling tools like `pprof` during load tests to observe telemetry-induced CPU or memory usage.
+</Tip>
+
+---
+
+## 6. Summary of Practical Configuration Options
+
+| Area                         | Configuration / Practice                                  |
+|-----------------------------|----------------------------------------------------------|
+| Connection Metrics           | Enable selectively, tune scrape intervals                |
+| Attributes                  | Limit to essentials, use custom AttributesGetter          |
+| Exporting                   | Use batching, memory limits, tune export intervals         |
+| Cardinality                 | Reduce label cardinality, avoid excessive attributes       |
+
+---
+
+## 7. Next Steps & Related Documentation
+
+- Explore how to instrument database/sql with otelsql: [Quickstart Instrumentation Guide](../quickstart-instrumentation)
+- Validate and visualize telemetry data with OpenTelemetry Collector and Prometheus: [OpenTelemetry Collector Integration](../../advanced-scenarios/otel-collector-integration)
+- Learn recommended instrumentation patterns for maintainable code: [Instrumentation Patterns](../../best-practices/instrumentation-patterns)
+- Troubleshoot missing metrics or spans: [Troubleshooting Signals](../../advanced-scenarios/troubleshooting-signals)
+
+---
+
+By applying these best practices, you ensure your database telemetry delivers maximum observability value with minimal impact on your Go applications' performance.

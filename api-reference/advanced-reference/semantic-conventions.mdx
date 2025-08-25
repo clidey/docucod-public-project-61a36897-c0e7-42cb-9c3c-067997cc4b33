@@ -1,0 +1,245 @@
+---
+title: "Semantic Conventions and Stability Levels"
+description: "Details the supported OpenTelemetry semantic convention stability levels, the purpose and usage of the OTEL_SEMCONV_STABILITY_OPT_IN environment variable, and how it affects emitted metrics and tracing attributes. Equips users to migrate between convention versions with confidence."
+---
+
+# Semantic Conventions and Stability Levels
+
+The **Semantic Conventions and Stability Levels** page details how otelsql supports OpenTelemetry semantic conventions for database instrumentation. It describes the configuration options available for opting into different stable or legacy conventions, how these choices affect emitted tracing attributes and metrics, and provides guidance for migrating between convention versions confidently.
+
+---
+
+## Overview
+
+OpenTelemetry evolves semantic conventions over time to improve clarity and interoperability. However, these changes can introduce breaking differences in telemetry attributes and metric names.
+
+otelsql addresses this by supporting multiple semantic convention stability levels controlled via the environment variable `OTEL_SEMCONV_STABILITY_OPT_IN`. This empowers users to opt into newer stable conventions or maintain compatibility with legacy formats as they transition.
+
+This page guides you through:
+
+- The supported stability levels
+- How to configure your environment to select the desired stability level
+- The impact on tracing attributes and emitted metrics
+- Best practices for smoothly migrating between convention versions
+
+---
+
+## Semantic Convention Stability Levels
+
+otelsql recognizes three main stability opt-in settings, which influence both **tracing attributes** and **metric emissions**:
+
+| Setting (value of `OTEL_SEMCONV_STABILITY_OPT_IN`) | Description | Tracing Attributes | Metrics Emitted |
+|-----------------------------------------------------|-------------|--------------------|-----------------|
+| *(empty string)* (default)                          | Legacy mode using the older semantic conventions from OpenTelemetry v1.24.0 | Emits `db.statement` attribute only | Emits legacy metric `db.sql.latency` only |
+| `database/dup`                                     | Dual mode emitting both legacy and new stable conventions | Emits both `db.statement` and `db.query.text` attributes | Emits both `db.sql.latency` and the new stable metric `db.client.operation.duration` |
+| `database`                                         | Stable mode using new semantic conventions introduced in OpenTelemetry v1.30.0 | Emits only the stable `db.query.text` attribute | Emits only the new stable metric `db.client.operation.duration` |
+
+
+### Effect on Trace Attributes
+
+The core difference is in the database query attribute emitted: 
+
+- **Legacy (`db.statement`)**: The original attribute string defined in OpenTelemetry v1.24 semantic conventions.
+- **Stable (`db.query.text`)**: The updated, preferred attribute introduced in later OpenTelemetry versions.
+
+When opting into `database/dup`, both are emitted simultaneously to ease migration.
+
+
+### Effect on Metrics
+
+- **Legacy Metrics**: 
+  - Metric Name: `db.sql.latency`
+  - Latency unit: milliseconds
+  - Attributes: `method` (SQL method), `status` (ok/error)
+
+- **Stable Metrics**: 
+  - Metric Name: `db.client.operation.duration`
+  - Latency unit: seconds
+  - Attributes: `db.operation.name` (SQL method), `error.type` (if error occurred)
+
+When opting into `database/dup`, both legacy and stable metrics are emitted concurrently.
+
+
+### Connection Statistics Metrics
+
+Regardless of stability opt-in setting, connection pool statistics metrics (`db.sql.connection.*`) are always emitted, enabling continuous visibility into connection pool health.
+
+---
+
+## Configuring Stability Levels
+
+To select the desired semantic convention stability level, set the environment variable `OTEL_SEMCONV_STABILITY_OPT_IN` accordingly before your application starts.
+
+### Supported values:
+
+- `` (empty): legacy only
+- `database/dup`: legacy + stable dual emission
+- `database`: stable only
+
+Example for Unix-like shell:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database
+```
+
+or
+
+```bash
+OTEL_SEMCONV_STABILITY_OPT_IN=database go run main.go
+```
+
+
+### Behavior in code
+
+The configuration initializes internally during the instrumentation setup and controls:
+
+- Which span attributes representing the query are automatically attached
+- Which metrics are recorded and emitted
+
+For example, the `DBQueryTextAttributes` function generates the attributes according to the selected stability level.
+
+---
+
+## Error Type Attribution in Metrics
+
+When the stable semantic conventions are opted in (`database/dup` or `database`), otelsql emits the `error.type` attribute on the `db.client.operation.duration` metric. This attribute provides rich error classification:
+
+- Special handling for known driver errors such as `ErrBadConn`, `ErrSkip`, and `ErrRemoveArgument`.
+- Custom and built-in Go errors are attributed using fully qualified type names.
+
+This detailed error attribution enhances observability and aids faster root cause analysis.
+
+> **Note:** `error.type` attribute is not included when only legacy metrics are emitted.
+
+---
+
+## Best Practices for Migration
+
+1. **Start with dual emission (`database/dup`)**:
+   - Emit both legacy and stable attributes and metrics to ensure compatibility during the transition.
+   - Allows existing dashboards and alerts to continue functioning while verifying new convention correctness.
+
+2. **Validate downstream tooling**:
+   - Confirm OpenTelemetry Collectors, backends, and analytics tools correctly interpret the new attributes and metrics.
+
+3. **Switch fully to stable (`database`)**:
+   - When confident, configure to emit only stable semantic conventions to reduce redundancy and benefit from new naming standards.
+
+4. **Monitor for gaps or mismatches**:
+   - Watch for missing traces, attributes, or metrics during migration and adjust instrumentation or environment configuration if required.
+
+---
+
+## Example: Checking Emitted Trace Attributes
+
+```go
+package main
+
+import (
+  "fmt"
+  semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+  semconvlegacy "go.opentelemetry.io/otel/semconv/v1.24.0"
+  "github.com/XSAM/otelsql/internal/semconv"
+)
+
+func main() {
+   query := "SELECT * FROM users"
+
+   // Using stable opt-in
+   attrFunc := semconv.NewDBQueryTextAttributes(semconv.OTelSemConvStabilityOptInStable)
+   attrs := attrFunc(query)
+
+   fmt.Println("Stable Attributes:")
+   for _, attr := range attrs {
+      fmt.Printf("%s: %s\n", attr.Key, attr.Value.AsString())
+   }
+
+   // Using legacy opt-in
+   attrLegacy := semconv.NewDBQueryTextAttributes(semconv.OTelSemConvStabilityOptInNone)
+   attrsLegacy := attrLegacy(query)
+
+   fmt.Println("\nLegacy Attributes:")
+   for _, attr := range attrsLegacy {
+      fmt.Printf("%s: %s\n", attr.Key, attr.Value.AsString())
+   }
+}
+```
+
+Output:
+```
+Stable Attributes:
+db.query.text: SELECT * FROM users
+
+Legacy Attributes:
+db.statement: SELECT * FROM users
+```
+
+---
+
+## Troubleshooting Tips
+
+- **Attributes or metrics missing after changing stability opt-in**:
+  - Restart your application ensuring the new environment variable is loaded.
+  - Verify instrumentation is properly configured by checking logs or debug output.
+
+- **Error type attribute not present on metrics**:
+  - Confirm you have opted into `database` or `database/dup` in `OTEL_SEMCONV_STABILITY_OPT_IN`.
+
+- **Duplicated metrics or attributes in dual mode (`database/dup`)**:
+  - This behavior is intentional for migration and backward compatibility.
+  - Remove legacy modes once migration is complete.
+
+- **Metrics timestamps or units seem off**:
+  - Legacy latency uses milliseconds; stable metrics use seconds. Adjust dashboard units accordingly.
+
+---
+
+## Related Configuration and Options
+
+- The `config` package internally uses `internalsemconv.ParseOTelSemConvStabilityOptIn()` to read and parse this environment variable.
+- `DBQueryTextAttributes` function is dynamically selected based on stability level to generate correct trace attributes.
+- Metrics recording functions selectively emit legacy or stable metrics based on this setting.
+
+For detailed code references, see:
+- [config.go](https://github.com/XSAM/otelsql/blob/main/config.go)
+- [internal/semconv/attributes.go](https://github.com/XSAM/otelsql/blob/main/internal/semconv/attributes.go)
+- [utils.go](https://github.com/XSAM/otelsql/blob/main/utils.go)
+
+---
+
+## Summary
+
+The semantic convention stability settings in otelsql allow flexible, controlled migration from legacy OpenTelemetry database semantic conventions to the newer stable standards. Users can select the level of compatibility by setting `OTEL_SEMCONV_STABILITY_OPT_IN` in their environment, controlling both what trace attributes otelsql emits and which metrics it records.
+
+Understanding the implications of each mode helps you ensure a smooth transition, maintain operational continuity, and take advantage of the latest semantic improvements in OpenTelemetry.
+
+---
+
+## Additional Resources
+
+- [OpenTelemetry Semantic Conventions for Database](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/trace/semantic_conventions/database.md)
+- [Semantic Conventions Stability Migration Guide (otelsql)](/guides/advanced-scenarios/semantic-convention-migration)
+- [Instrumentation and Metrics Configuration API Reference](/api-reference/core-api/option-configuration)
+- [Error Handling and Attribution Details](/api-reference/advanced-reference/error-handling)
+
+---
+
+<AccordionGroup title="Frequently Asked Questions">
+<Accordion title="Why are there multiple semantic convention levels?">
+OpenTelemetry semantic conventions evolve, and different versions exist in the ecosystem. Multiple levels allow users to maintain backward compatibility while migrating to newer, more accurate attributes and metrics.
+</Accordion>
+<Accordion title="What happens if I don’t set OTEL_SEMCONV_STABILITY_OPT_IN?">
+It defaults to legacy mode (`db.statement` attribute and legacy metrics) for maximum compatibility but missing out on new stable features like detailed error attribution.
+</Accordion>
+<Accordion title="How do I know which setting to use?">
+Start with `database/dup` to emit both sets of attributes and metrics. Monitor your telemetry systems and once stable, switch to `database` for clean, modern semantic conventions.
+</Accordion>
+</AccordionGroup>
+
+<Tip>
+Setting the appropriate semantic convention stability level is critical for aligning with your OpenTelemetry collector and backend capabilities. Always validate your telemetry after changing this setting.
+</Tip>
+
+<Note>
+Changes in semantic convention stability affect low-level instrumentation details but do not alter your application code besides environment variable configuration.
+</Note>

@@ -1,0 +1,232 @@
+---
+title: "Instrumenting database/sql with otelsql"
+description: "Learn how to add otelsql instrumentation to a Go project using the provided Open and Register functions. Covers installation, basic usage patterns, and verifying trace and metrics emission in a local development environment."
+---
+
+# Instrumenting database/sql with otelsql
+
+Learn how to add otelsql instrumentation to a Go project using the provided `Open` and `Register` functions. This guide covers installation, basic usage patterns, and verifying trace and metrics emission in a local development environment.
+
+---
+
+## Overview
+
+This guide helps you seamlessly instrument your Go `database/sql` connections with otelsql to collect detailed telemetry data, including traces and metrics. By following this step-by-step process, you'll enable rich observability from your database interactions, facilitating performance tuning and issue diagnosis.
+
+### Prerequisites
+- Go development environment set up
+- Access to a supported SQL driver (e.g., `mysql` driver)
+- OpenTelemetry Collector (optional but recommended for advanced telemetry collection and visualization)
+
+### Expected Outcome
+- Establish instrumented database connections using otelsql
+- Automatically generate OpenTelemetry traces and metrics for SQL operations
+- Verify that telemetry data is collected and visible locally via tools like Jaeger and Prometheus
+
+### Time Estimate
+Approximately 15-30 minutes including setup and verification.
+
+### Difficulty Level
+Beginner to Intermediate
+
+---
+
+## Step-by-Step Instructions
+
+### 1. Install otelsql
+
+First, add the otelsql package to your Go module:
+
+```bash
+$ go get github.com/XSAM/otelsql
+```
+
+This installs the core instrumentation package for use.
+
+---
+
+### 2. Import Necessary Packages
+
+In your Go file, import otelsql along with your database driver and OpenTelemetry SDK packages as needed:
+
+```go
+import (
+	"context"
+	"database/sql"
+	"log"
+
+	_ "github.com/go-sql-driver/mysql" // or your driver
+	"github.com/XSAM/otelsql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+```
+
+---
+
+### 3. Instrument Your Database Connection Using `otelsql.Open`
+
+Replace traditional `sql.Open` with `otelsql.Open` to enable instrumentation. Pass your driver name and DSN (Data Source Name) along with otelsql options like semantic attributes.
+
+```go
+dsn := "root:password@tcp(localhost:3306)/dbname?parseTime=true"
+db, err := otelsql.Open("mysql", dsn, otelsql.WithAttributes(semconv.DBSystemMySQL))
+if err != nil {
+	log.Fatalf("failed to open database: %v", err)
+}
+defer db.Close()
+```
+
+- The `WithAttributes` option attaches semantic conventions to your spans and metrics, helping observability backends identify your database system.
+
+---
+
+### 4. Register Database Connection Metrics
+
+After opening your instrumented DB, register connection pool statistics metrics for deeper operational visibility.
+
+```go
+err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(semconv.DBSystemMySQL))
+if err != nil {
+	log.Fatalf("failed to register DB stats metrics: %v", err)
+}
+```
+
+This captures metrics like open connections, wait times, and closed connections, reflecting your connection pool health.
+
+---
+
+### 5. Use Your Instrumented `sql.DB` Normally
+
+You can now execute queries with your instrumented `db` object as usual. Use context-aware query functions to propagate OpenTelemetry context.
+
+```go
+ctx := context.Background()
+var currentTime string
+err = db.QueryRowContext(ctx, "SELECT CURRENT_TIMESTAMP").Scan(&currentTime)
+if err != nil {
+	log.Fatalf("query failed: %v", err)
+}
+log.Println("Current Time:", currentTime)
+```
+
+All these operations will produce spans and metrics automatically.
+
+---
+
+### 6. Verify Telemetry in Local Development
+
+To visualize traces and metrics locally, use the [OpenTelemetry Collector example](https://github.com/XSAM/otelsql/tree/main/example/otel-collector), which sets up a MySQL server, OT Collector, Jaeger, and Prometheus.
+
+#### Quick Start Example
+1. Clone the repository or navigate to the example directory.
+2. Run:
+
+```bash
+docker compose up -d
+```
+
+3. After the client finishes (check logs: `docker compose logs client`), access:
+   - Jaeger UI: [http://localhost:16686](http://localhost:16686) for tracing
+   - Prometheus UI: [http://localhost:9090](http://localhost:9090) for metrics
+
+4. You should see traces of your SQL calls and associated metrics.
+
+5. When done, shut down with:
+
+```bash
+docker compose down
+```
+
+---
+
+### 7. Optional: Customizing Tracing and Metrics
+
+- Enable SQL statement commenting for context propagation using `WithSQLCommenter` option.
+- Adjust span creation behavior via `SpanOptions` when using lower-level APIs.
+- For advanced customization, refer to the option configuration detailed in the [API Reference](https://pkg.go.dev/github.com/XSAM/otelsql#Option).
+
+---
+
+## Practical Tips & Best Practices
+
+- **Always use context-aware database calls (`QueryContext`, `ExecContext`)** to propagate trace context correctly.
+- **Register DB stats metrics once per database instance** to avoid metric duplication.
+- **Instrument early in your application setup** to capture all pertinent telemetry.
+- **Monitor your metrics and traces frequently** to proactively detect and diagnose performance issues.
+
+<Tip>
+For stable and forward-compatible semantic conventions, consider setting the environment variable `OTEL_SEMCONV_STABILITY_OPT_IN` to `database` or `database/dup` before running your app.
+</Tip>
+
+<Warning>
+Ensure your database driver is supported. The example defaults to `mysql` driver; adapt to your driver accordingly.
+</Warning>
+
+---
+
+## Troubleshooting
+
+<Accordion title="Database Connection Errors">
+If `otelsql.Open` returns errors:
+- Verify the DSN string format and credentials.
+- Confirm your database server is running and reachable.
+- Check that the driver is properly imported (blank import) and compatible.
+</Accordion>
+
+<Accordion title="Missing Spans or Metrics">
+- Confirm that your code uses context-aware calls.
+- Check environment variables affecting semantic conventions.
+- Verify `RegisterDBStatsMetrics` is called after `Open`.
+- Use logs from OpenTelemetry Collector or local backend to diagnose pipeline issues.
+</Accordion>
+
+<Accordion title="Performance Concerns">
+- Instrument only critical database interactions to reduce overhead.
+- Tune the OpenTelemetry Collector batching and memory settings.
+- Use the `SpanOptions` fields to disable verbose events like `RowsNext` if unnecessary.
+</Accordion>
+
+---
+
+## Next Steps & Related Documentation
+
+- **View Traces and Metrics: Quick Verification** — learn how to explore your telemetry effectively once instrumentation is enabled.
+- **Sending Telemetry to the OpenTelemetry Collector** — deeper integration patterns with OTLP collector pipelines.
+- **Recommended Instrumentation Patterns** — best practices for scalable instrumentations.
+- **Semantic Convention Migration** — guidance on evolving OpenTelemetry semantic stability.
+
+Explore example projects:
+- [Standard Output Example](https://github.com/XSAM/otelsql/tree/main/example/stdout)
+- [OTel Collector Example](https://github.com/XSAM/otelsql/tree/main/example/otel-collector)
+
+Official source and API details available at the [GitHub repository](https://github.com/XSAM/otelsql).
+
+---
+
+## Summary Diagram
+
+```mermaid
+flowchart TD
+  A["Go Application"] -->|Instrumented DB Calls| B["otelsql Instrumentation"]
+  B --> C["database/sql Driver"]
+  C --> D[("SQL Database")]
+  B --> E["OpenTelemetry SDK"]
+  E --> F["Span Exporter"]
+  E --> G["Metrics Exporter"]
+  F --> H[("OpenTelemetry Collector")]
+  G --> H
+  H --> I["Tracing Backend (e.g., Jaeger)"]
+  H --> J["Metrics Backend (e.g., Prometheus)"]
+
+  classDef db fill:#88f,stroke:#111,color:#eee;
+  classDef telemetry fill:#8f8,stroke:#111;color:#111;
+  class D,I,J db
+  class B,E,F,G,H telemetry
+```
+
+This flow shows your instrumented SQL calls passing through otelsql to generate telemetry, exporting it via OpenTelemetry components for observation.
+
+---
+
+**Now you're ready to instrument your database/sql with otelsql and unlock rich observability for your Go applications!**

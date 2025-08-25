@@ -1,0 +1,194 @@
+---
+title: "Troubleshooting: Missing Spans or Metrics"
+description: "Systematic diagnostics for common problems such as missing telemetry signals, setup misconfigurations, or environment variable mistakes. Presents checks, error sources, and resolution tips."
+---
+
+# Troubleshooting: Missing Spans or Metrics
+
+When using otelsql to instrument your Go database/sql interactions, it’s crucial that trace spans and metrics appear as expected in your observability backends like Jaeger and Prometheus. Missing spans or metrics typically indicate setup or configuration problems. This guide helps you systematically diagnose and resolve common issues preventing telemetry signals from being generated or collected.
+
+---
+
+## 1. Understanding the Problem
+
+**What you want to achieve:**
+- Trace spans related to database calls are visible in your tracing UI (e.g., Jaeger).
+- Metrics about database usage appear correctly on your Prometheus metrics endpoint.
+
+**Common signs of failure:**
+- No trace spans appear for SQL queries.
+- Metrics endpoint is empty or missing key database metrics.
+- Collector or instrumentation logs show errors or warnings.
+
+---
+
+## 2. Preliminary Checks
+
+Before diving deep, verify these essential prerequisites to avoid common pitfalls.
+
+- **Instrumentation enabled:** Confirm you are using `otelsql.Open` or an equivalent method to open your database connection.
+- **Metrics registered:** Ensure you called `otelsql.RegisterDBStatsMetrics` for metrics collection.
+- **Collector reachable:** Your OpenTelemetry Collector or backend endpoints (Jaeger, Prometheus) must be accessible.
+- **Network and ports:** No firewall or network issues block communication to collector endpoints (ports 4317 for OTLP, 9090 for Prometheus, 16686 for Jaeger UI).
+- **Environment setup:** Variables such as `OTEL_EXPORTER_OTLP_ENDPOINT` and related settings are correct if used.
+
+---
+
+## 3. Step-by-Step Diagnostic Workflow
+
+<Steps>
+<Step title="Step 1: Confirm Instrumented Connection Setup">
+Verify that your database connection uses otelsql's instrumentation wrapper.
+
+- Confirm your code uses `otelsql.Open(driverName, dataSourceName)` instead of the plain `sql.Open`.
+- For metrics, ensure you've called `otelsql.RegisterDBStatsMetrics(db, "driverName")` after opening.
+
+**Expected result:**
+Tracing and metrics hooks wrap the database connection.
+
+If missing, you will not get any spans or metrics.
+</Step>
+
+<Step title="Step 2: Check Collector and Exporter Configuration">
+Review your OpenTelemetry Collector configuration:
+- For traces, the collector’s OTLP receiver must be active on port 4317.
+- For metrics, the Prometheus exporter should expose metrics correctly (commonly port 9090).
+
+Look at your collector YAML (`otel-collector.yaml`) and ensure these blocks are present and correct.
+
+**Expected result:**
+Collector is running without errors, ready to receive telemetry data.
+
+If misconfigured, spans and metrics won’t be forwarded or visible.
+</Step>
+
+<Step title="Step 3: Verify Network Connectivity">
+Ensure all services can communicate:
+- Database client → OpenTelemetry Collector (OTLP port 4317)
+- OpenTelemetry Collector → Jaeger (trace endpoint)
+- OpenTelemetry Collector → Prometheus exporter (metrics endpoint)
+
+Use commands like `curl` or `telnet` to test port reachability.
+
+**Expected result:**
+No connection failures or timeouts.
+
+Network issues will silently drop telemetry.
+</Step>
+
+<Step title="Step 4: Inspect Logs and Run in Debug Mode">
+Start your application and collector with verbose or debug logging enabled:
+- In your app, enable debug exporters or logging to stdout.
+- In the collector config, adjust exporter verbosity (e.g., `debug` exporter with `verbosity: detailed`).
+
+Check logs for errors related to exporter issues, connection refusals, or context propagation.
+
+**Expected result:**
+Log confirms spans and metrics are generated and sent without error.
+
+Logs will highlight misconfigurations or runtime failures.
+</Step>
+
+<Step title="Step 5: Confirm Instrumentation Library Versions">
+Use consistent and supported versions of otelsql, OpenTelemetry SDKs, and collector components.
+Older or mismatched versions may cause incompatibilities.
+
+Check your `go.mod` or dependencies and consult the project’s release notes.
+
+**Expected result:**
+No known version conflicts.
+
+Version issues can silently break telemetry delivery.
+</Step>
+</Steps>
+
+---
+
+## 4. Common Issues and Fixes
+
+<AccordionGroup title="Common Problems and How to Fix Them">
+<Accordion title="Missing Spans Despite Instrumented Code">
+- **Check:** Did you forget to open the DB connection using `otelsql.Open`?
+- **Fix:** Refactor your code to replace `sql.Open` with `otelsql.Open` with the proper driver name.
+- **Tip:** Confirm your code paths reach the instrumentation setup (no conditional logic skipping it).
+</Accordion>
+
+<Accordion title="Metrics Not Showing Up in Prometheus">
+- **Check:** Did you call `otelsql.RegisterDBStatsMetrics`?
+- **Fix:** Add the registration call passing your `*sql.DB` and driver name.
+- **Check:** Is the Prometheus endpoint configured and running correctly?
+- **Fix:** Verify the Collector’s Prometheus exporter config and port exposure.
+</Accordion>
+
+<Accordion title="Collector Not Receiving Telemetry">
+- **Check:** Is collector OTLP receiver running and exposed?
+- **Fix:** Adjust your `otel-collector.yaml` to enable the OTLP receiver on expected port (usually 4317).
+- **Check:** Is your application using the correct endpoint to send telemetry?
+- **Fix:** Match `OTEL_EXPORTER_OTLP_ENDPOINT` or exporter config with collector receiver endpoint.
+</Accordion>
+
+<Accordion title="Network or Firewall Blocking Signals">
+- **Check:** Can you ping or reach all involved services from each container or host?
+- **Fix:** Ensure Docker network or cloud firewall rules allow traffic on needed ports.
+</Accordion>
+
+<Accordion title="Incorrect Environment Variables or Flags">
+- **Check:** Are you using environment variables like `OTEL_EXPORTER_OTLP_ENDPOINT` correctly?
+- **Fix:** Double-check variable names, values, and that your app/collector is reading them.
+</Accordion>
+
+<Accordion title="Collector Logs Show Exporter Errors">
+- **Check:** Review collector logs for export failures or TLS handshake errors.
+- **Fix:** For TLS errors, consider setting `tls.insecure` to `true` in dev environments, or configure certs correctly.
+</Accordion>
+
+<Accordion title="Instrumentation Library Version Conflicts">
+- **Check:** Are your otelsql and collector versions compatible?
+- **Fix:** Upgrade/downgrade components according to compatibility guidance on the official repo.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## 5. Practical Verification Example
+
+Use the provided example setup to validate your instrumentation pipeline.
+
+1. Launch services with Docker Compose: 
+```sh
+docker compose up -d
+```
+
+2. Confirm client service has completed instrumentation logs:
+```sh
+docker compose logs client
+```
+
+3. Open Jaeger UI at http://localhost:16686 to see trace spans.
+
+4. Open Prometheus UI at http://localhost:9090 and query metrics like `otel_db_sql_conns`.
+
+5. If missing, refer back to the steps above to diagnose.
+
+---
+
+## 6. Tips for Success and Best Practices
+
+- Always instrument your DB connection early before any queries.
+- Use debug logging temporarily to understand telemetry flow.
+- Keep configuration files version controlled and ensure they match runtime contexts.
+- Regularly update example projects for quick validation.
+- Isolate problems by testing one telemetry signal type at a time (first tracing, then metrics).
+
+---
+
+## 7. Additional Resources and Next Steps
+
+- [First otelsql Instrumentation Guide](../getting-started/configuration-usage/first-otel-instrumentation)
+- [OpenTelemetry Collector Integration Guide](../guides/advanced-scenarios/otel-collector-integration)
+- [Run Local Examples with Docker Compose](../getting-started/examples-integration/local-quickstart-examples)
+- Official OpenTelemetry Collector documentation for advanced troubleshooting
+
+For persistent or unclear issues, consult the community on GitHub or open an issue with detailed logs.
+
+---

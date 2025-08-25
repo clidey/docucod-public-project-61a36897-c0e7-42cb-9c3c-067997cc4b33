@@ -1,0 +1,252 @@
+---
+title: "Viewing Traces and Metrics: Quick Verification"
+description: "A step-by-step walkthrough to observe traces and metrics using the stdout and Prometheus exporters. Guides users through configuring the example, interacting with the database, and monitoring the generated telemetry."
+---
+
+# Viewing Traces and Metrics: Quick Verification
+
+A practical step-by-step walkthrough to observe and verify your `otelsql` instrumentation in action. This guide helps you configure the stdout and Prometheus exporters, interact with your database, and monitor the resulting telemetry, enabling rapid validation of traces and metrics collection.
+
+---
+
+## 1. Workflow Overview
+
+### What You'll Achieve
+You will configure the example project to export telemetry data via stdout (for tracing) and Prometheus (for metrics), perform basic database operations, and then verify that traces and metrics are successfully emitted and observable.
+
+### Prerequisites
+- Your Go environment set up with `otelsql` installed and integrated into your application.
+- A running MySQL database (the example uses a local or containerized MySQL instance).
+- Familiarity with running Docker Compose is helpful, as the example provided uses Docker for environment setup.
+
+### Expected Outcome
+By following this guide, you will:
+- Configure the example application to print trace spans to stdout.
+- Expose Prometheus-compatible metrics and view using a Prometheus UI.
+- Confirm that database interactions generate both traces and metrics.
+
+### Time Estimate
+~15-20 minutes, depending on your local environment setup.
+
+### Difficulty Level
+Beginner to Intermediate – focused on validation and observation.
+
+---
+
+## 2. Step-by-Step Instructions
+
+### Step 1: Prepare the Example Environment
+
+1. **Clone the repository and navigate to the example directory:**
+
+   ```bash
+   git clone https://github.com/XSAM/otelsql.git
+   cd otelsql/example/stdout
+   ```
+
+2. **Review the `docker-compose.yml` (or equivalent) to understand service setup.** This example includes:
+   - A MySQL container as the database backend.
+   - An example Go application instrumented with `otelsql`.
+
+### Step 2: Start SQL Client with Exporters
+
+1. Run the example application configured to:
+   - Output trace spans to stdout.
+   - Serve Prometheus metrics on a specified HTTP endpoint.
+
+2. Use Docker Compose to spin up the example environment (if available):
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Watch application logs to verify startup and telemetry output:
+
+   ```bash
+   docker compose logs -f client
+   ```
+
+### Step 3: Interact with the Database
+
+The example application performs a simple query against the MySQL database:
+
+```go
+rows, err := db.QueryContext(ctx, `SELECT CURRENT_TIMESTAMP`)
+```
+
+This triggers the instrumentation to create trace spans and record metrics about the query execution.
+
+### Step 4: Observe Telemetry Output
+
+#### Traces via stdout
+- The application prints detailed trace span output to its stdout.
+- Look for span names corresponding to SQL method calls, such as `ConnQuery` or `StmtQuery`.
+- Spans include attributes showing query text (depending on the configuration), status, and duration.
+
+#### Metrics via Prometheus
+- Metrics related to database connection pool and query latencies are exposed on a Prometheus endpoint.
+- Open a browser or use a Prometheus client to access the metrics at `http://localhost:port/metrics` (port depends on config).
+
+##### Common metrics include:
+- `db.sql.latency` (latency of calls in milliseconds, legacy metric)
+- `db.client.operation.duration` (duration percentiles in seconds, following OpenTelemetry semantic conventions)
+- Connection metrics such as `db.sql.connection.open` and `db.sql.connection.max_open`
+
+### Step 5: Verify Metrics and Trace Data
+
+- Confirm span creation by inspecting the stdout logs, validating the presence of span names and attributes.
+- Confirm metrics are available by querying Prometheus or curling the metrics endpoint:
+
+```bash
+curl http://localhost:port/metrics
+```
+
+Look for metrics that start with `db.sql.` or `db.client.operation.duration`.
+
+### Step 6: Stop the Example Environment
+
+When verification is complete, shut down the example:
+
+```bash
+docker compose down
+```
+
+---
+
+## 3. Practical Example
+
+Here's a minimal code snippet showing how the example application initializes and uses `otelsql` with stdout and Prometheus exporters (extracted and adapted from the example):
+
+```go
+package main
+
+import (
+	"context"
+	"database/sql"
+	"log"
+	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/XSAM/otelsql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric/global"
+)
+
+func main() {
+	ctx := context.Background()
+
+	dsn := "root:password@tcp(localhost:3306)/db?parseTime=true"
+
+	attrs := otelsql.AttributesFromDSN(dsn)
+
+	db, err := otelsql.Open("mysql", dsn, otelsql.WithAttributes(attrs...))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(attrs...))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Perform a simple query to generate traces and metrics
+	rows, err := db.QueryContext(ctx, "SELECT CURRENT_TIMESTAMP")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rows.Close()
+
+	var currentTime time.Time
+	for rows.Next() {
+		err = rows.Scan(&currentTime)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	log.Println("Current time from DB:", currentTime)
+
+	// Keep application running to expose Prometheus metrics endpoint or watch output
+	// ...
+}
+```
+
+---
+
+## 4. Troubleshooting & Tips
+
+### Common Issues
+
+- **No spans printed in stdout:**
+  - Verify that your instrumentation is correctly initialized with `otelsql.Open`.
+  - Confirm no error occurred during driver wrapping.
+  - Check log output level and collector settings.
+
+- **Metrics endpoint not reachable:**
+  - Ensure the Prometheus metrics endpoint is exposed and accessible.
+  - Confirm Docker port mappings are correct.
+  - Validate firewall or network settings allowing access.
+
+- **No metrics appear on Prometheus:**
+  - Confirm `RegisterDBStatsMetrics` is called with your database instance.
+  - Make sure your Prometheus server is scraping the `/metrics` endpoint properly.
+
+### Best Practices
+
+- Use meaningful database attributes in telemetry, e.g., include `semconv.DBSystemMySQL` to clearly identify the DB system.
+- Limit verbose span creation if not needed by adjusting `SpanOptions` to reduce overhead.
+- For production, prefer sending telemetry to an OpenTelemetry Collector rather than stdout for better scalability.
+
+### Performance Considerations
+
+- The example uses simple exporters for quick validation. In production, use OTLP exporters.
+- The semantic convention stability option (`OTEL_SEMCONV_STABILITY_OPT_IN`) can affect which metrics and attributes are emitted—set as needed.
+
+---
+
+## 5. Next Steps & Related Resources
+
+- Explore the [First otelsql Integration](../configuration-usage/first-otel-instrumentation) guide to set up production-ready instrumentation.
+- Dive deeper into metrics and traces with the [Next Steps: Explore Metrics & Traces](../examples-integration/next-steps-explore-metrics) guide.
+- Try the [otel-collector example](../../example/otel-collector) for sending telemetry to a full OpenTelemetry Collector setup for advanced visualization.
+- Consult the [API Reference](../../api-reference) for configuration details and custom instrumentation.
+
+---
+
+## Visualizing the Instrumentation Data Flow
+
+```mermaid
+flowchart TD
+  App["Instrumented Application (otelsql)"] -->|Executes SQL| MySQL["MySQL Database"]
+
+  subgraph Telemetry Export
+    App -->|Traces (stdout exporter)| StdoutExporter["Stdout Exporter"]
+    App -->|Metrics (Prometheus exporter)| PrometheusEndpoint["Prometheus Metrics Endpoint"]
+  end
+
+  PrometheusEndpoint -->|Scraped by| PrometheusServer["Prometheus Server"]
+
+  click App "example/stdout/main.go" "Instrumented Example Application"
+  click PrometheusEndpoint "example/stdout/prometheus.go" "Prometheus Exporter Implementation"
+```
+
+---
+
+<Check>
+Ensure your database operations create spans visible on stdout and that metrics appear via Prometheus.
+</Check>
+
+<Tip>
+To see detailed trace spans in stdout, run your application with logging level set to debug or trace if supported.
+</Tip>
+
+<Note>
+For full production telemetry, use OpenTelemetry Collector integration for managing trace and metrics pipelines.
+</Note>
+
+--- 
+
+# Summary
+
+This guide walked you through verifying your `otelsql` setup by using the stdout trace exporter and Prometheus metrics exporter in a practical example environment. It covered running queries instrumented with `otelsql`, confirming trace spans printed to stdout, and accessing Prometheus metrics. The next steps point you to deeper integration guides and advanced telemetry pipelines.

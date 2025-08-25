@@ -1,0 +1,148 @@
+---
+title: "Core Concepts & Terminology"
+description: "Learn foundational terms such as instrumentation, spans, metrics, semantic conventions, `sql.DBStats`, and environment variables like `OTEL_SEMCONV_STABILITY_OPT_IN`. Provides short, context-rich explanations so new adopters can follow documentation with ease."
+---
+
+# Core Concepts & Terminology
+
+Understanding the foundational concepts and terminology behind otelsql empowers you to use the library effectively, configure it confidently, and interpret the resulting telemetry with clarity. This page introduces key terms and environment variables critical to navigating the documentation and optimizing your instrumentation experience.
+
+---
+
+## Instrumentation
+
+At its core, **instrumentation** is the process of adding code to your database/sql interactions to produce telemetry data such as traces and metrics. 
+
+With otelsql, instrumentation automatically captures detailed information about your database calls — like queries executed, connection usage, and errors — without requiring invasive code changes. This visibility helps you understand application behavior and diagnose issues.
+
+**Why it matters:** Instrumentation turns opaque database calls into observable telemetry signals vital for troubleshooting performance and reliability.
+
+---
+
+## Spans
+
+A **span** represents a single unit of work or operation in distributed tracing. Each database query or connection usage results in a span.
+
+- **Duration:** Spans measure the time taken by a database operation.
+- **Context:** Spans can be related hierarchically, linking database calls with broader application traces.
+- **Attributes:** Metadata such as query text, database system name, or error details are attached to spans.
+
+By collecting spans, you construct a trace that reveals the end-to-end journey of requests traversing your application and database.
+
+**Example:** When your application executes an SQL statement, otelsql creates a span capturing the query text, timing, and any errors.
+
+---
+
+## Metrics
+
+otelsql also exports **metrics** exposing aggregated statistics from your database/sql usage. Metrics provide continuous numerical data about your application's interaction with the database, enabling monitoring and alerting.
+
+Typical metrics include:
+- Number of open connections
+- In-use versus idle connections
+- Connection wait times
+
+Metrics complement traces by offering a broad, real-time overview of database health and performance.
+
+---
+
+## Semantic Conventions
+
+**Semantic conventions** are standardized keys and meanings for span attributes and metric labels to ensure interoperability and consistency across telemetry producers and consumers.
+
+otelsql complies with OpenTelemetry semantic conventions to:
+
+- Describe database queries using attributes like `db.statement` or `db.query.text`.
+- Set error types with uniform keys.
+- Leverage stable conventions for long-term compatibility.
+
+<br>
+
+### `OTEL_SEMCONV_STABILITY_OPT_IN` Environment Variable
+
+This environment variable controls which semantic convention attributes otelsql emits for database query texts.
+
+- **`none` (default):** Emits only the legacy `db.statement` attribute.
+- **`dup`:** Emits both the legacy `db.statement` and the stable `db.query.text` attributes.
+- **`stable`:** Emits only the stable `db.query.text` attribute.
+
+Setting this allows gradual migration to the newest semantic standards without losing backward compatibility.
+
+---
+
+## `sql.DBStats`
+
+`database/sql` provides the `DBStats` struct exposing runtime statistics about your database connection pool.
+
+otelsql leverages these statistics to generate meaningful metrics:
+
+- Max open connections
+- Open connections
+- In-use connections
+- Idle connections
+- Wait count and duration
+
+Monitoring `sql.DBStats` metrics lets you identify connection leaks, bottlenecks, or over-provisioned pools.
+
+---
+
+## How These Concepts Tie Together
+
+1. Your application uses **database/sql** to run queries.
+2. otelsql inserts **instrumentation** that produces **spans** for each DB operation.
+3. These spans carry attributes following **semantic conventions** to maximize clarity and compatibility.
+4. Concurrently, otelsql exports **metrics** from `sql.DBStats` for real-time pool monitoring.
+5. Using the **`OTEL_SEMCONV_STABILITY_OPT_IN`** variable, you choose which query attribute conventions to emit, balancing legacy and stable standards.
+
+---
+
+## Practical Tip
+
+> To quickly check what semantic attributes are emitted for your queries, toggle the `OTEL_SEMCONV_STABILITY_OPT_IN` variable and observe spans in your tracing backend. This helps you align your instrumentation with your observability platform’s expectations.
+
+---
+
+## Troubleshooting Common Confusions
+
+<AccordionGroup title="Common FAQ on Core Terms">
+<Accordion title="What is the difference between a span and a metric?">
+A span captures the details of a single operation (like one SQL query), focusing on timing and context. Metrics aggregate information (like total connections open) to provide a high-level numeric overview.
+</Accordion>
+<Accordion title="Why does otelsql emit different semantic attributes for queries?">
+Semantic conventions evolve; to ensure compatibility, otelsql supports emitting legacy and stable query attributes. Use the environment variable `OTEL_SEMCONV_STABILITY_OPT_IN` to control this behavior.
+</Accordion>
+<Accordion title="How does sql.DBStats relate to metrics?">
+sql.DBStats provides the raw data that otelsql translates into meaningful metrics about connection pool usage. These metrics help monitor connection health and behavior.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+Now that you're familiar with these core concepts, proceed to [Architecture & Data Flow](/overview/architecture-concepts/architecture-and-data-flow) to see how these pieces fit together in the otelsql system. Then explore the [Feature Overview](/overview/architecture-concepts/feature-overview) for detailed capabilities and how they deliver value.
+
+
+---
+
+## Glossary Summary
+
+| Term                         | Overview                                         |
+|------------------------------|------------------------------------------------|
+| Instrumentation              | Code that generates telemetry from DB calls     |
+| Span                        | A single database operation trace unit           |
+| Metrics                     | Aggregated numeric data on DB operations         |
+| Semantic Conventions        | Standardized attribute keys for telemetry        |
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | Env var controlling query attribute emission    |
+| `sql.DBStats`               | Go struct exposing DB connection pool stats      |
+
+---
+
+## References
+
+- OpenTelemetry Semantic Conventions: https://opentelemetry.io/docs/reference/specification/trace/semantic_conventions/
+- [Semantic Conventions and Stability Levels](/api-reference/advanced-reference/semantic-conventions)
+- [Configuration Basics](/getting-started/configuration-usage/basic-configuration)
+
+
+
