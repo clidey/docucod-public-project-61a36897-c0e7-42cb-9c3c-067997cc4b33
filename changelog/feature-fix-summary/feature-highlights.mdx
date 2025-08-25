@@ -1,0 +1,156 @@
+---
+title: "Feature Highlights by Release"
+description: "Spotlight major features introduced over recent versions, with concrete examples and links to relevant usage or migration docs. Enables users to quickly identify value-adding capabilities for their trace and metric workflows."
+---
+
+# Feature Highlights by Release
+
+This page spotlights the major feature introductions and enhancements over recent **otelsql** versions. It is designed to help you quickly identify new capabilities and improvements that add value to your database instrumentation workflows, particularly around trace and metric collection with Go's `database/sql`. Each release summary includes concrete examples, user benefits, and pointers to detailed usage or migration documentation.
+
+---
+
+## How to Use This Page
+
+Browse releases in reverse chronological order to catch up on the latest capabilities. Each feature highlight is framed with your goals in mind — whether enhancing observability, integrating smoothly with telemetry collectors, or optimizing performance.
+
+Use the included links to directly jump into deeper documentation or migration notes when upgrading critical features.
+
+---
+
+## Recent Feature Highlights
+
+### Version v0.12.0 - Released 2024-05-10
+
+- **Expanded Semantic Conventions Support**
+  - Aligned otelsql with the latest OpenTelemetry Stable Semantic Conventions for database attributes.
+  - Benefit: Improved interoperability and standardized tracing data across telemetry systems.
+  - See [Semantic Conventions and Stability Levels](/api-reference/advanced-reference/semantic-conventions) for detailed usage.
+
+- **Enhanced Metrics Instrumentation with `RegisterDBStatsMetrics`**
+  - Added new metrics tracking connection pool wait times and errors.
+  - Benefit: Gain deeper insights into connection behavior affecting latency and throughput.
+  - Example usage provided in [Instrumenting Metrics with RegisterDBStatsMetrics](/api-reference/core-api/metrics-instrumentation).
+
+- **Improved Integration Example with OpenTelemetry Collector**
+  - Updated Docker Compose configurations to support latest Prometheus and Jaeger versions.
+  - Benefit: Easier testing and visualization of traces and metrics.
+  - Check [Sending Telemetry to the OpenTelemetry Collector](/guides/advanced-scenarios/otel-collector-integration) for setup details.
+
+---
+
+### Version v0.11.0 - Released 2024-02-28
+
+- **New API Method: `WrapDriver` for flexible instrumentation**
+  - Enables wrap-on-top approach to instrument any registered `database/sql` driver without changing existing connection code.
+  - Benefit: Simplifies adding telemetry without refactoring database initialization.
+  - Learn implementation patterns in [Recommended Instrumentation Patterns](/guides/best-practices/instrumentation-patterns).
+
+- **Context Propagation Enhancements Using SQLCommenter**
+  - Added support for attaching custom context propagation info to SQL queries using SQLCommenter.
+  - Benefit: Achieve richer trace correlation between application code and database operations.
+  - Details and examples are in [SQLCommenter: Context Propagation & Enhanced Tracing](/guides/advanced-scenarios/sqlcommenter-context-propagation).
+
+- **Performance Optimizations for High-Throughput Scenarios**
+  - Reduced overhead for frequently executed queries by optimizing span creation and metrics collection.
+  - Benefit: Maintain minimal latency impact during heavy database access.
+  - Review performance tuning tips in [Optimizing Metrics & Performance Impact](/guides/best-practices/metrics-tuning).
+
+---
+
+### Version v0.10.0 - Released 2023-11-15
+
+- **Initial Stable Release with Core Instrumentation Features**
+  - Established the foundational instrumentation APIs: `Open`, `OpenDB`, `Register`, and baseline metrics.
+  - Benefit: Enable standardized OpenTelemetry tracing and metrics on Go’s `database/sql` with minimal code changes.
+  - Start instrumenting using the quickstart guide: [Instrumenting database/sql with otelsql](/guides/getting-started/quickstart-instrumentation).
+
+- **Introductory Metrics Collection for `sql.DBStats`**
+  - Basic visibility into open connections, idle connections, and wait counts.
+  - Benefit: Easily monitor connection pool health and potential bottlenecks.
+
+- **Example Projects for Collector and Visualization**
+  - Delivered sample projects including MySQL client instrumentation and integrated OTEL Collector with Prometheus and Jaeger.
+  - Benefit: Hands-on reference to validate your instrumentation setup.
+  - Explore the example setup at [Run Local Examples (Docker & Compose)](/getting-started/examples-integration/local-quickstart-examples).
+
+---
+
+## Practical Tips to Leverage New Features
+
+- When upgrading between major versions, review any breaking changes thoroughly in [Breaking Changes & Migration Steps](/changelog/upgrade-migration/breaking-changes).
+- Register your database stats metrics early with `RegisterDBStatsMetrics` to unlock rich metrics for dashboards and alerts.
+- Use the SQLCommenter integration to enhance trace context propagation for complex distributed transactions.
+
+---
+
+## Troubleshooting and Validation
+
+If you notice missing traces or metrics after an upgrade or new feature integration:
+- Verify that your instrumentation calls match the updated API usage.
+- Confirm your telemetry pipeline setup with OpenTelemetry Collector and visualization tools like Jaeger or Prometheus.
+- Consult [Troubleshooting: Missing Spans or Metrics](/guides/advanced-scenarios/troubleshooting-signals) for targeted diagnostics.
+
+---
+
+## Related Documentation
+
+- [Overview of otelsql and Core Concepts](/overview/product-intro-core-value/what-is-otelsql)
+- [Getting Started: First otelsql Integration](/getting-started/configuration-usage/first-otel-instrumentation)
+- [Instrumentation Patterns and Best Practices](/guides/best-practices/instrumentation-patterns)
+- [Metrics Instrumentation API Reference](/api-reference/core-api/metrics-instrumentation)
+- [Upgrade and Migration Guidance](/changelog/upgrade-migration/breaking-changes)
+
+---
+
+Harnessing the power of these enhancements will elevate your database observability, making it easier to identify performance issues, optimize throughput, and correlate database activity within your overall distributed trace data.
+
+Dive into the examples and upgrade guides to maximize the value of your otelsql instrumentation.
+
+---
+
+<CardGroup cols={2}>
+<Card title="View Full Release Notes">
+Explore detailed release notes and version history for all versions.
+
+[All Releases & Change History](/changelog/release-notes/historical-releases)
+</Card>
+<Card title="Upgrade and Migration">
+Check for breaking changes and migration instructions before upgrading.
+
+[Breaking Changes & Migration Steps](/changelog/upgrade-migration/breaking-changes)
+</Card>
+</CardGroup>
+
+---
+
+<Steps>
+<Step title="Step 1: Identify New Features in Your Version">
+Review release highlights above to find new capabilities relevant to your workflow.
+</Step>
+<Step title="Step 2: Consult Usage Guides">
+Jump into related API references or guides linked for setup examples and best practices.
+</Step>
+<Step title="Step 3: Validate in Your Environment">
+Use the example projects and troubleshooting tips to verify smooth integration and monitor telemetry data.
+</Step>
+<Step title="Step 4: Apply Migration Guidance">
+Follow migration steps precisely if upgrading to a version with breaking changes.
+</Step>
+</Steps>
+
+---
+
+<Tip>
+Stay current with otelsql releases to continuously enhance your application's observability and leverage OpenTelemetry's evolving standards and ecosystem.
+</Tip>
+
+<Note>
+This page focuses strictly on feature-level highlights. For full bug fixes, patches, and deprecated functionality, visit the [Resolved Issues & Patches](/changelog/feature-fix-summary/bug-fixes) and [Deprecated & Removed Features](/changelog/upgrade-migration/deprecations-removals) pages.
+</Note>
+
+---
+
+_Last updated: June 2024_
+
+
+
