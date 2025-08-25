@@ -1,0 +1,185 @@
+---
+title: "Deprecated & Removed Features"
+description: "Lists features, APIs, or metrics that have been deprecated or removed, explains the rationale, possible alternatives, and sunset timelines. Helps maintainers anticipate and address impending obsolescence."
+---
+
+# Deprecated & Removed Features
+
+This page documents features, APIs, and metrics within otelsql that have been deprecated or removed over time. Understanding these changes will help you maintain your instrumentation smoothly, anticipate upcoming obsolescence, and migrate to supported alternatives with confidence.
+
+---
+
+## Understanding Deprecation in otelsql
+
+Deprecation means that a feature or API is no longer recommended for use and may be removed in a future release. We provide clear guidance on alternate approaches and migration paths to help you transition effortlessly.
+
+Removal means the feature or API is no longer available in the current release and must be replaced or updated to continue functioning.
+
+We prioritize maintaining stability for users while continuously improving the library's correctness, usability, and alignment with OpenTelemetry best practices.
+
+---
+
+## Deprecated Features and APIs
+
+### 1. Deprecated linters and linting rules in `.golangci.yaml`
+
+The linting configuration file `.golangci.yaml` disables certain linters that are either too strict or no longer align well with our coding standards. These include:
+
+- `varnamelen`
+- `depguard`
+- `funlen`
+- `gochecknoglobals`
+- `godox`
+- `wsl`
+- `exhaustruct`
+- `err113`
+- `lll`
+- `gochecknoinits`
+- `nlreturn`
+- `paralleltest`
+- `mnd`
+- `testpackage`
+- `ireturn`
+- `dupl`
+- `containedctx`
+- `wrapcheck`
+- `exhaustive`
+- `spancheck`
+- `nonamedreturns`
+
+**Rationale:** These linters either cause excessive false positives or conflict with specific idiomatic Go usage patterns we intentionally embrace for clarity and maintainability.
+
+**Alternative:** Continue using the enabled set of linters for effective code quality checks. Refer to `.golangci.yaml` for details.
+
+---
+
+### 2. Deprecated Environment Variable Semconv Opt-in
+
+The environment variable `OTEL_SEMCONV_STABILITY_OPT_IN` controls semantic convention stability levels.
+
+- The value `database/dup` was used to emit both old and new semantic conventions.
+
+- The value `database` was used to emit only the new stable database semantic conventions.
+
+This opt-in approach has been deprecated in favor of directly adopting the stable semantic conventions without duplication, simplifying configuration and reducing confusion.
+
+**Migration:** Update your environment to use the stable conventions by removing or modifying `OTEL_SEMCONV_STABILITY_OPT_IN`. See our [Semantic Convention Migration Guide](/guides/advanced-scenarios/semantic-convention-migration) for detailed steps.
+
+---
+
+### 3. Deprecated Renovate Grouping for Internal Tools (in `renovate.json`)
+
+The Renovate configuration disables dependency updates for indirect dependencies found in `internal/tools/**`:
+
+```json
+{
+  "matchFileNames": ["internal/tools/**"],
+  "matchManagers": ["gomod"],
+  "matchDepTypes": ["indirect"],
+  "enabled": false
+}
+```
+
+**Reason:** These dependencies are managed manually to avoid uncoordinated updates that might break internal build tooling.
+
+**Next Steps:** Maintain manual updates to these in controlled changesets.
+
+---
+
+## Removed Features and APIs
+
+### 1. Removal of Old Deprecated Linters
+
+Linters such as `varnamelen` and `godox` were removed from the default linting process due to poor fit and noisy warnings.
+
+### 2. Removal of Semantic Convention Duplication Support Code
+
+The code handling emission of dual (old and new) database semantic conventions based on the `database/dup` opt-in has been removed. The product now exclusively supports the stable semantic conventions.
+
+### 3. Deprecated Git Tag Validation and Release Script Assumptions
+
+The `pre_release.sh` script enforces semantic version tags strictly and aborts if the tag exists or if the working tree is dirty. Simplifications were made to this flow to avoid redundant legacy checks.
+
+**Action:** When performing releases, ensure a clean working tree and that your tags comply with semantic versioning without outdated validation routines.
+
+---
+
+## Sunset Timelines and Migration Paths
+
+| Feature or API                         | Deprecation Notice Date | Removal Release | Migration Path & Notes                                          |
+|-------------------------------------|-------------------------|-----------------|---------------------------------------------------------------|
+| Semantic Convention Opt-in (`OTEL_SEMCONV_STABILITY_OPT_IN`) | v0.9.0                  | v1.0.0          | Switch to stable semantic conventions only; see migration guide |
+| Linters disabled in `.golangci.yaml` | v0.10.0                 | Already removed    | Use enabled linters as configured; avoid deprecated ones       |
+| Renovate indirect dependencies in internal tools | v0.11.0                 | Continued manual   | Maintain manual updates; do not rely on Renovate PR grouping    |
+
+We strongly encourage upgrading to the latest releases and following the provided migration guides to avoid disruptions.
+
+---
+
+## Common Pitfalls and How to Avoid Them
+
+- **Failing builds due to removed linters:** Always verify your project’s linting passes with the enabled linters in `.golangci.yaml`. Avoid re-enabling deprecated linters unless you control and understand their impacts.
+
+- **Breaking telemetry changes from semantic convention transitions:** Before upgrading across major versions, review the semantic convention migration documentation carefully.
+
+- **Release tag conflicts:** Before running `pre_release.sh`, ensure your Git working tree is clean and the version tag has not been used.
+
+- **Unmanaged dependencies in internal tools:** Do not rely on automated Renovate PRs for dependencies in the `internal/tools` directory; manage these cautiously.
+
+---
+
+## Practical Example: Updating Deprecated Semantic Convention Environment Variable
+
+If you currently have:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database/dup
+```
+
+Update to simply remove or unset the variable:
+
+```bash
+unset OTEL_SEMCONV_STABILITY_OPT_IN
+```
+
+or only use stable conventions explicitly (depending on your deployment needs).
+
+Then restart your application to ensure the new conventions are applied.
+
+Refer to the [Semantic Convention Migration Guide](/guides/advanced-scenarios/semantic-convention-migration) for full details.
+
+---
+
+## Additional Resources
+
+- [Semantic Convention Migration Guide](/guides/advanced-scenarios/semantic-convention-migration) — Step-by-step instructions to migrate to stable semantic conventions.
+- [Basic Tracing and Metrics Verification](/guides/getting-started/basic-tracing-metrics) — Validate your instrumentation after upgrading.
+- [Renovate Configuration Overview](/example/renovate.json) — Understand dependency management policies.
+- [Linting Configuration](/.golangci.yaml) — Review enabled and disabled linters.
+
+---
+
+## Summary
+
+By keeping up with deprecations and removals listed here, you ensure your instrumentation with otelsql remains reliable, up-to-date, and aligned with OpenTelemetry standards. Carefully follow migration paths and test your telemetry environments after changes.
+
+If you encounter missing features or behaviors, consult the migration guides or open issues in our GitHub repository.
+
+---
+
+_Last updated: June 2024_
+
+
+---
+
+<AccordionGroup title="Frequently Asked Questions about Deprecations & Removals">
+<Accordion title="Why are certain linters disabled in `.golangci.yaml`?">
+Some linters produce too many false positives, conflict with idiomatic Go practices we use, or reduce developer productivity. We disable those linters to focus on meaningful automated checks.
+</Accordion>
+<Accordion title="What should I do if I see missing telemetry fields after upgrading semantic conventions?">
+This may indicate a breaking semantic convention change. Review the Semantic Convention Migration Guide to identify renamings or replacements of attributes and update your queries or dashboards accordingly.
+</Accordion>
+<Accordion title="Can I still use the old semantic convention duplication opt-in?">
+No. Support for emitting both old and stable semantic conventions via `OTEL_SEMCONV_STABILITY_OPT_IN=database/dup` has been removed to simplify instrumentation and reduce confusion.
+</Accordion>
+</AccordionGroup>
