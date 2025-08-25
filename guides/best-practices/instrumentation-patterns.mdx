@@ -1,0 +1,282 @@
+---
+title: "Recommended Instrumentation Patterns"
+description: "Shows practical ways to wrap, register, or open database connections with otelsql based on real-world application needs, highlighting strengths and caveats of each approach."
+---
+
+# Recommended Instrumentation Patterns
+
+This guide helps you understand practical ways to wrap, register, or open database connections using `otelsql` based on real-world application needs. You will learn how to choose the best instrumentation approach for your project with a clear understanding of each method's strengths and caveats.
+
+---
+
+## Workflow Overview
+
+### What This Guide Helps You Accomplish
+This page shows you actionable, real-world patterns to instrument Go's `database/sql` package with `otelsql`. It clarifies how to use the main entry points (`Open`, `Register`, `OpenDB`, and `WrapDriver`) to best fit different application scenarios, whether you want straightforward connection opening, driver registration, or advanced driver wrapping.
+
+### Prerequisites
+- Familiarity with Go and the `database/sql` package.
+- Installed `otelsql` module.
+- A working database driver (e.g., MySQL).
+- Basic understanding of OpenTelemetry concepts such as tracing and metrics (helpful but not required).
+
+### Expected Outcome
+You will be able to instrument your SQL database interactions with `otelsql` using the pattern that best suits your application, enabling telemetry collection with minimal effort and correct configuration.
+
+### Time Estimate
+About 10-15 minutes to read and try out the patterns.
+
+### Difficulty Level
+Intermediate - requires knowledge of Go `database/sql` usage and some instrumentation basics.
+
+---
+
+## Recommended Instrumentation Patterns
+
+There are four main ways to instrument SQL connections with `otelsql`. Understanding each will ensure your instrumentation is efficient, maintainable, and tailored to your project's structure.
+
+### 1. Using `otelsql.Open` (Simplest & Direct)
+
+The most straightforward approach is to use `otelsql.Open` instead of `sql.Open`. This method wraps the driver automatically and opens a connection that is immediately instrumented.
+
+#### When to Use
+- You want a quick drop-in replacement for opening DB connections.
+- You want to add generic attributes and basic instrumentation with minimal setup.
+- Your project uses standard database/sql drivers and connection strings.
+
+#### How to Use
+```go
+import (
+    "github.com/XSAM/otelsql"
+    semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+func connectDB() (*sql.DB, error) {
+    // Add meaningful attributes, e.g., DB system type
+    attrs := []attribute.KeyValue{semconv.DBSystemMySQL}
+
+    db, err := otelsql.Open("mysql", "your-mysql-dsn", otelsql.WithAttributes(attrs...))
+    if err != nil {
+        return nil, err
+    }
+    return db, nil
+}
+```
+
+#### Expected Outcome
+Get an instrumented `*sql.DB` instance that records spans and metrics on each SQL call.
+
+#### Caveat
+You must know the DSN and driver name upfront, and `otelsql.Open` manages driver wrapping internally.
+
+---
+
+### 2. Registering a Driver with `otelsql.Register`
+
+Use `otelsql.Register` when you want to create a named wrapped driver for repeated use or to centralize driver registration.
+
+#### When to Use
+- You want to reuse an instrumented driver by registering it under a specific driver name.
+- You want to control more advanced driver wrapping but still leverage the default metrics setup.
+- You want to register the wrapped driver once and open connections separately.
+
+#### How to Use
+```go
+import (
+    "database/sql"
+    "github.com/XSAM/otelsql"
+    semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+func init() {
+    err := otelsql.Register("otel-mysql", "mysql", otelsql.WithAttributes(semconv.DBSystemMySQL))
+    if err != nil {
+        panic(err)
+    }
+}
+
+func connectDB() (*sql.DB, error) {
+    return sql.Open("otel-mysql", "your-mysql-dsn")
+}
+```
+
+#### Expected Outcome
+You gain full control over driver registration and can open instrumented connections using standard `sql.Open` with the registered wrapped driver name.
+
+#### Caveat
+Keep driver registration centralized to avoid duplicate registrations or unintentional conflicts.
+
+---
+
+### 3. Using `otelsql.OpenDB` for Instrumented `*sql.DB`
+
+`OpenDB` accepts a `driver.Connector`, providing advanced connect-time configuration and allowing direct integration with custom drivers or connectors.
+
+#### When to Use
+- You manage or configure your own `driver.Connector` (e.g., for custom connection pools or advanced driver configurations).
+- You want to instrument existing connectors without changing the connection opening code.
+
+#### How to Use
+```go
+import (
+    "database/sql"
+    "github.com/XSAM/otelsql"
+)
+
+func instrumentConnector(connector driver.Connector) *sql.DB {
+    // Wrap existing driver.Connector
+    db := otelsql.OpenDB(connector, otelsql.WithAttributes(...))
+    return db
+}
+```
+
+#### Expected Outcome
+Obtain an instrumented `*sql.DB` which wraps the underlying connector calls for detailed tracing.
+
+#### Caveat
+Requires familiarity with the `driver.Connector` interface and advanced database/sql internals.
+
+---
+
+### 4. Wrapping a Driver with `otelsql.WrapDriver`
+
+This gives you full control by wrapping a driver directly, which is useful for very custom setups.
+
+#### When to Use
+- You are building custom drivers or interceptors.
+- You want to apply instrumentation at the driver level transparently across your project.
+
+#### How to Use
+```go
+import (
+    "database/sql"
+    "github.com/XSAM/otelsql"
+    "github.com/go-sql-driver/mysql"
+)
+
+func registerWrappedDriver() {
+    wrappedDriver := otelsql.WrapDriver(&mysql.MySQLDriver{}, otelsql.WithAttributes(...))
+    sql.Register("otel-mysql", wrappedDriver)
+}
+
+func connectDB() (*sql.DB, error) {
+    return sql.Open("otel-mysql", "your-dsn")
+}
+```
+
+#### Expected Outcome
+Custom driver wrapped with OpenTelemetry instrumentation, allowing flexible interception.
+
+#### Caveat
+Requires manual driver registration and deeper understanding of custom driver implementations.
+
+---
+
+## Best Practices and Tips
+
+- **Choose the simplest method first**: Use `otelsql.Open` for most applications needing quick and effective instrumentation.
+- **Use `Register` for clarity and reuse**: Register the wrapped driver once during application startup for better maintainability.
+- **Leverage `OpenDB` and `WrapDriver` for advanced use cases**: Only use these for custom connectors or driver implementations.
+- **Add meaningful attributes**: Always include relevant semantic attributes such as `semconv.DBSystemMySQL` to enrich telemetry.
+- **Register DB statistics metrics separately**: Use `otelsql.RegisterDBStatsMetrics` with your instrumented `*sql.DB` to capture connection-level stats.
+
+```go
+err := otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(semconv.DBSystemMySQL))
+if err != nil {
+    panic(err)
+}
+```
+
+- **Beware of multiple instrumentation**: Do not wrap the same driver or connection multiple times as it may cause telemetry duplication.
+- **Consider semantic convention stability**: Understand the implications of `OTEL_SEMCONV_STABILITY_OPT_IN` for metrics and attributes emitted.
+
+---
+
+## Troubleshooting & Common Pitfalls
+
+<AccordionGroup title="Troubleshooting Common Instrumentation Issues">
+<Accordion title="Duplicate Spans or Metrics">
+If you see duplicated telemetry data, verify that the driver or connection isn't wrapped multiple times. Use only one instrumentation method consistently.
+</Accordion>
+<Accordion title="Driver Not Registered">
+Attempting to open a connection on an unregistered wrapped driver causes an error. Ensure you call `otelsql.Register` if you use custom wrapped drivers.
+</Accordion>
+<Accordion title="Missing Attributes">
+Missing semantic attributes reduce telemetry usefulness. Confirm you pass attributes such as `semconv.DBSystemMySQL` via options like `WithAttributes`.
+</Accordion>
+<Accordion title="Performance Impact">
+Instrumentation adds some overhead; use `SpanOptions` to reduce span creation for noisy operations like `Ping` or `RowsNext` where appropriate.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Examples
+
+### Example: Quick Open with Instrumentation
+```go
+import (
+    "database/sql"
+    "github.com/XSAM/otelsql"
+    semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+func main() {
+    db, err := otelsql.Open("mysql", "user:pass@tcp(localhost)/dbname", otelsql.WithAttributes(semconv.DBSystemMySQL))
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(semconv.DBSystemMySQL))
+    if err != nil {
+        panic(err)
+    }
+
+    // Use db normally
+}
+```
+
+### Example: Register Wrapped Driver and Open Later
+```go
+func init() {
+    err := otelsql.Register("otel-mysql", "mysql", otelsql.WithAttributes(semconv.DBSystemMySQL))
+    if err != nil {
+        panic(err)
+    }
+}
+
+func main() {
+    db, err := sql.Open("otel-mysql", "user:pass@tcp(localhost)/dbname")
+    if err != nil {
+        panic(err)
+    }
+    defer db.Close()
+
+    // Register DB stats metric
+    _ = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(semconv.DBSystemMySQL))
+
+    // Use db normally
+}
+```
+
+---
+
+## Next Steps & Related Content
+
+- Explore **[Instrumenting database/sql with otelsql](https://docs.example.com/guides/getting-started/quickstart-instrumentation)** to learn full integration setup.
+- Review **[RegisterDBStatsMetrics](https://docs.example.com/api-reference/core-api/metrics-instrumentation)** to understand metrics instrumentation.
+- Learn about **[Semantic Convention Migration](https://docs.example.com/guides/advanced-scenarios/semantic-convention-migration)** to use new stable OpenTelemetry conventions.
+- Troubleshoot with **[Troubleshooting: Missing Spans or Metrics](https://docs.example.com/guides/advanced-scenarios/troubleshooting-signals)** when instrumentation doesn't behave as expected.
+
+---
+
+<Tip>
+Choosing the right instrumentation pattern depends on your project's complexity. For most cases, `otelsql.Open` is sufficient and easiest to adopt. Registering the driver via `otelsql.Register` is the next best option if you want driver reuse. Only explore `OpenDB` and `WrapDriver` for advanced, custom scenarios.
+</Tip>
+
+---
+
+This guide equips you with clear, immediately actionable guidance to confidently instrument your Go application's database interactions using `otelsql`.
+
+---
