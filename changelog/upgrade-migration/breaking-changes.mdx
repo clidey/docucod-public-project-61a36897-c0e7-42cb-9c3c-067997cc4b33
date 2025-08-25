@@ -1,0 +1,204 @@
+---
+title: "Breaking Changes & Migration Steps"
+description: "Summarizes all breaking changes, with clear step-by-step instructions for migrating legacy code and preserving observability. Includes information on semantic convention changes and environment variable adjustments."
+---
+
+# Breaking Changes & Migration Steps
+
+This page provides a comprehensive overview of all breaking changes introduced in otelsql, along with clear, actionable migration steps to help users update legacy code and maintain seamless observability. It covers semantic convention changes, environment variable adjustments, and detailed instructions to preserve tracing and metrics continuity.
+
+---
+
+## 1. Overview of Breaking Changes
+
+Updating your database instrumentation to the latest otelsql version may involve adapting to changes that affect how telemetry data is emitted and processed. This section highlights the key breaking changes that impact your integration and observability workflows.
+
+### 1.1 Semantic Convention Updates
+
+- **Transition to Stable Semantic Conventions:**
+  otelsql has aligned with the latest OpenTelemetry stable semantic conventions for database instrumentation. This shift means some attribute keys have changed from legacy formats to stable formats, enhancing interoperability and standard compliance.
+
+- **Dual Emission Option:**
+  The library now supports emitting both legacy and stable semantic attributes simultaneously through an opt-in environment variable to facilitate a smooth migration.
+
+### 1.2 Environment Variable Adjustments
+
+- **`OTEL_SEMCONV_STABILITY_OPT_IN` Introduced:**
+  This environment variable controls semantic convention behavior:
+  - Set to `database/dup` to emit both legacy and new stable database semantic attributes.
+  - Set to `database` to emit only new stable database semantic attributes.
+  - If unset or set otherwise, otelsql emits only legacy attributes.
+
+This provides migration flexibility, allowing users to phase transition without losing observability data.
+
+---
+
+## 2. Migration Steps: Updating Legacy Integrations
+
+Follow this guide to adjust your code and environment for compatibility with the latest otelsql semantic convention changes.
+
+### Step 1: Review and Set Semantic Convention Opt-In
+
+Locate the environment where your application runs and update the `OTEL_SEMCONV_STABILITY_OPT_IN` variable accordingly based on your migration strategy:
+
+```bash
+# Emit both legacy and stable semantic attributes for dual compatibility
+export OTEL_SEMCONV_STABILITY_OPT_IN=database/dup
+
+# Or, emit only stable semantic attributes after full migration
+export OTEL_SEMCONV_STABILITY_OPT_IN=database
+
+# For existing behavior (legacy only), unset or omit
+unset OTEL_SEMCONV_STABILITY_OPT_IN
+```
+
+**Tip:** Use `database/dup` during transition to ensure downstream systems continue receiving both attribute formats.
+
+### Step 2: Update Instrumentation Dependencies and Code
+
+Ensure your otelsql integration uses the latest version supporting semantic convention opt-in. Then adjust your instrumentation initialization if you handle query attributes explicitly.
+
+For example, when generating query attribute keys use the new helper function that respects the opt-in setting:
+
+```go
+import (
+    "go.opentelemetry.io/otel/attribute"
+    "internal/semconv" // your import path to semconv package
+)
+
+// Get query attribute function based on current opt-in
+dbQueryAttributes := semconv.NewDBQueryTextAttributes(semconv.ParseOTelSemConvStabilityOptIn())
+
+// Later in your query instrumentation code
+attrs := dbQueryAttributes(queryString) // returns appropriate attribute key-value pairs
+// Attach attrs to your spans
+```
+
+This pattern ensures your telemetry adapts dynamically to user environment settings.
+
+### Step 3: Verify Telemetry Emission
+
+After these changes, validate that your traces and metrics pipeline receives the expected span attributes and metrics.
+
+- Use your tracing backend (e.g., Jaeger) to check if spans include `db.query.text` and/or legacy `db.statement` attributes based on your settings.
+- Confirm metrics completeness in Prometheus or other metrics backends.
+
+See the [Quick Validation & Troubleshooting](/getting-started/configuration-usage/quick-validation-troubleshooting) and [Next Steps: Explore Metrics & Traces](/getting-started/examples-integration/next-steps-explore-metrics) guides for detailed verification steps.
+
+---
+
+## 3. Common Migration Pitfalls & How to Avoid Them
+
+### Pitfall: Incompatible Collector or Backend
+
+Some telemetry backends or OpenTelemetry collectors might not yet support the new stable semantic conventions fully.
+
+**Solution:** Use the `database/dup` opt-in to emit both old and new attributes simultaneously during the migration period.
+
+### Pitfall: Environment Variables Not Set or Overridden
+
+Forgetting to set or incorrectly configuring the `OTEL_SEMCONV_STABILITY_OPT_IN` environment variable leads to unexpected missing attributes.
+
+**Solution:** Explicitly set and verify this variable in all runtime environments, including CI/CD pipelines, containers, and local testing.
+
+### Pitfall: Hardcoded Attribute Keys in Custom Instrumentation
+
+Custom instrumentation code that directly manipulates legacy attributes (`db.statement`) will not emit stable attributes without conditional code changes.
+
+**Solution:** Replace hardcoded keys with the attribute helpers provided in `semconv.NewDBQueryTextAttributes`.
+
+---
+
+## 4. Environment Variable Details
+
+| Variable Name                | Description                                                                                  | Possible Values     | Default Behavior         |
+|-----------------------------|----------------------------------------------------------------------------------------------|---------------------|--------------------------|
+| `OTEL_SEMCONV_STABILITY_OPT_IN` | Controls emission of legacy and/or stable semantic attributes for database instrumentation | `database/dup` - emit both legacy and stable <br> `database` - emit only stable <br> unset/other - emit legacy only | Emit legacy only if unset |
+
+---
+
+## 5. Summary
+
+Updating otelsql to align with stable OpenTelemetry semantic conventions requires careful handling of query attributes and environment variables. By setting `OTEL_SEMCONV_STABILITY_OPT_IN` appropriately and using provided semantic hints in your code, you can ensure your telemetry continues without interruption during migration.
+
+Always verify the telemetry data flow after migrating and refer to the example integration and troubleshooting guides for assistance.
+
+---
+
+## 6. Additional Resources
+
+- [Semantic Convention Migration Guide](/guides/advanced-scenarios/semantic-convention-migration)
+- [Quick Validation & Troubleshooting](/getting-started/configuration-usage/quick-validation-troubleshooting)
+- [First otelsql Instrumentation](/getting-started/configuration-usage/first-otel-instrumentation)
+- [OpenTelemetry Database Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/database/)
+
+
+---
+
+<AccordionGroup title="Detailed Environment Variable Usage">
+<Accordion title="Using OTEL_SEMCONV_STABILITY_OPT_IN">
+Set this environment variable to control telemetry attribute emission related to database query information. 
+
+- `database/dup` enables dual emission for compatibility
+- `database` uses only the latest stable semantic conventions
+- Unset or other values fall back to legacy behavior
+
+Example in Unix shell:
+
+```bash
+export OTEL_SEMCONV_STABILITY_OPT_IN=database/dup
+```
+
+Restart your application after updating environment variables to ensure changes take effect.
+</Accordion>
+<Accordion title="Checking Your Current Semantic Convention Configuration">
+Verify current environment variable setting:
+
+```bash
+echo $OTEL_SEMCONV_STABILITY_OPT_IN
+```
+
+If blank, otelsql defaults to legacy conventions.
+</Accordion>
+</AccordionGroup>
+
+<AccordionGroup title="Sample Code Snippet for Migrated Instrumentation">
+<Accordion title="Example Go Code for Query Attribute Emission">
+```go
+package main
+
+import (
+    "fmt"
+    "internal/semconv" // Adapt path as applicable
+)
+
+func main() {
+    optInType := semconv.ParseOTelSemConvStabilityOptIn()
+    getAttributes := semconv.NewDBQueryTextAttributes(optInType)
+
+    query := "SELECT * FROM users WHERE id = ?"
+    attrs := getAttributes(query)
+
+    for _, attr := range attrs {
+        fmt.Printf("%s: %s\n", attr.Key, attr.Value.AsString())
+    }
+}
+```
+</Accordion>
+</AccordionGroup>
+
+<Warning>
+Always test your changes in development environments to ensure compatibility before deploying to production. Semantic conventions change can affect telemetry data processing and your observability insights.
+</Warning>
+
+---
+
+This page integrates closely with other parts of the otelsql documentation to help you update your instrumentation smoothly while maintaining full visibility:
+
+- Check [Semantic Convention Migration Guide](/guides/advanced-scenarios/semantic-convention-migration) for the theory and details behind these changes.
+- Use [Quick Validation & Troubleshooting](/getting-started/configuration-usage/quick-validation-troubleshooting) to make sure your traces and metrics flow correctly post-migration.
+- If you are new, start with [First otelsql Instrumentation](/getting-started/configuration-usage/first-otel-instrumentation) to learn basic integration.
+
+For detailed references on semantic conventions and attribute handling, see the internal packages under `semconv` like `attributes.go` and `env.go` in the codebase.
+
+---
