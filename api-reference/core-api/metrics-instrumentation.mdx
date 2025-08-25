@@ -1,0 +1,199 @@
+---
+title: "Instrumenting Metrics with RegisterDBStatsMetrics"
+description: "Covers registering metrics on sql.DBStats to produce detailed connection pool and database operation metrics. Explains typical metric types, how to use RegisterDBStatsMetrics, and showcases Prometheus integration."
+---
+
+# Instrumenting Metrics with RegisterDBStatsMetrics
+
+This page explains how to register and collect detailed connection pool and database operation metrics from Go's `sql.DBStats` using `otelsql`'s `RegisterDBStatsMetrics` function. You will learn the typical metrics produced, how to integrate this registration into your instrumentation workflow, and see an example demonstrating usage alongside Prometheus for metrics scraping and visualization.
+
+---
+
+## Why Instrument `sql.DBStats` Metrics?
+
+When using Go's `database/sql` package, the `DBStats` struct provides valuable runtime information about the connection pool state and behavior. Capturing these statistics as OpenTelemetry metrics allows you to monitor database client usage characteristics such as active connections, wait times, and connection closures due to pool limits — all critical for diagnosing performance bottlenecks and resource constraints.
+
+`otelsql` exposes these metrics through `RegisterDBStatsMetrics`, which enables you to seamlessly export connection pool telemetry alongside your application traces and metrics.
+
+---
+
+## Overview of Metrics Registered by RegisterDBStatsMetrics
+
+The metrics covered by `RegisterDBStatsMetrics` correspond directly to Go's native `sql.DBStats` fields, reflecting connection pool health and behavior. They are *always* emitted regardless of semantic convention stability settings, complementing the operation duration and latency metrics.
+
+Here are the primary metrics you get:
+
+| Metric Name                                           | Description                                               | Attributes                    |
+| ---------------------------------------------------- | ---------------------------------------------------------| -----------------------------|
+| **db.sql.connection.max_open**                        | Maximum number of open connections to the database       | None                         |
+| **db.sql.connection.open**                            | Number of established connections (in use and idle)      | `status`: `idle` or `inuse`  |
+| **db.sql.connection.wait**                            | Total number of connections waited for                    | None                         |
+| **db.sql.connection.wait_duration**                   | Total time blocked waiting for new connection (milliseconds) | None                      |
+| **db.sql.connection.closed_max_idle**                 | Number closed due to `SetMaxIdleConns`                    | None                         |
+| **db.sql.connection.closed_max_idle_time**            | Number closed due to `SetConnMaxIdleTime`                 | None                         |
+| **db.sql.connection.closed_max_lifetime**             | Number closed due to `SetConnMaxLifetime`                 | None                         |
+
+These metrics provide crucial visibility on how your connection pool is operating under load and can help you tune parameters like max open connections or idle timeout effectively.
+
+---
+
+## How to Use RegisterDBStatsMetrics
+
+Integrating connection pool metrics instrumentation with `otelsql` is straightforward. After you open or register your instrumented `*sql.DB`, invoke `RegisterDBStatsMetrics` and pass the `*sql.DB` instance. Optionally, provide configuration options such as a custom OpenTelemetry MeterProvider or additional attributes.
+
+### Step-by-step Usage:
+
+1. **Open your instrumented `*sql.DB` connection** using one of the `otelsql` APIs, for example `otelsql.Open`:
+
+```go
+import (
+	"database/sql"
+	"github.com/XSAM/otelsql"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+mysqlDSN := "user:password@tcp(localhost)/database" 
+
+// Open instrumented database connection
+ db, err := otelsql.Open("mysql", mysqlDSN, otelsql.WithAttributes(
+	 semconv.DBSystemMySQL,
+))
+ if err != nil {
+	 panic(err)
+ }
+ defer db.Close()
+```
+
+2. **Register connection pool metrics using `RegisterDBStatsMetrics`:**
+
+```go
+import "context"
+
+// Register DBStats to capture connection pool metrics
+err = otelsql.RegisterDBStatsMetrics(db, otelsql.WithAttributes(
+	 semconv.DBSystemMySQL,
+))
+if err != nil {
+	 panic(err)
+}
+```
+
+3. **Run your application queries as usual.** Metrics will now be collected from the connection pool stats.
+
+### Optional Configuration Options
+
+You can pass options such as:
+
+- `WithMeterProvider(meterProvider)`: Register metrics on a custom OpenTelemetry MeterProvider instead of the global one.
+- `WithAttributes(...)`: Add static attributes applied uniformly to all emitted DBStats metrics.
+
+If you don’t specify options, default configuration and the global MeterProvider are used.
+
+---
+
+## Example: Registering DBStats Metrics with Prometheus Integration
+
+This concise example demonstrates how to instrument the database/sql with otelsql and register DBStats metrics, suitable for scraping in Prometheus.
+
+```go
+package main
+
+import (
+	"database/sql"
+	"log"
+	
+	"github.com/XSAM/otelsql"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/prometheus"
+	"go.opentelemetry.io/otel/metric/global"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+)
+
+func main() {
+	// Create a Prometheus exporter
+	exporter, err := prometheus.New()
+	if err != nil {
+		log.Fatalf("failed to create prometheus exporter: %v", err)
+	}
+
+	// Set Prometheus exporter as global MeterProvider
+	otel.SetMeterProvider(exporter.MeterProvider())
+
+	// Open and instrument MySQL DB
+	dsn := "user:password@tcp(localhost)/mydb"
+	db, err := otelsql.Open("mysql", dsn, otelsql.WithAttributes(
+		semconv.DBSystemMySQL,
+	))
+	if err != nil {
+		log.Fatalf("failed to open DB: %v", err)
+	}
+	defer db.Close()
+
+	// Register DBStats metrics (connection pool stats)
+	if err := otelsql.RegisterDBStatsMetrics(db); err != nil {
+		log.Fatalf("failed to register DBStats metrics: %v", err)
+	}
+
+	// Run application queries...
+}
+```
+
+In a full setup, you can expose the Prometheus HTTP metrics endpoint, then configure Prometheus to scrape that endpoint, visualizing data in Grafana or similar.
+
+---
+
+## What Happens Under the Hood?
+
+When you call `RegisterDBStatsMetrics(db, opts...)`:
+
+- `otelsql` creates observable instruments (`Int64ObservableGauge` and `Int64ObservableCounter`) for each of the connection pool statistics.
+- Metrics such as `db.sql.connection.open` are split by connection `status` (`idle` vs `inuse`), providing granular insight.
+- These instruments are periodically observed and reported via your OpenTelemetry MeterProvider.
+
+The metrics side-by-side complement query latency and error metrics collected during query execution.
+
+---
+
+## Troubleshooting and Best Practices
+
+<AccordionGroup title="Common Issues & Tips">
+<Accordion title="Metrics Not Showing up in Prometheus">
+- Ensure you have correctly configured the OpenTelemetry MeterProvider and metrics exporter (e.g., Prometheus exporter).
+- Confirm that `RegisterDBStatsMetrics` was called **after** you opened and instrumented `*sql.DB`.
+- Verify Prometheus is scraping the correct metrics endpoint, and that the scrape interval matches your exporter settings.
+</Accordion>
+<Accordion title="High Number of Connections or Wait Times">
+- Review values like `db.sql.connection.wait` and `wait_duration`. High values may indicate your DB pool is exhausted.
+- Tune your `SetMaxOpenConns`, `SetMaxIdleConns`, and idle timeout settings on the `*sql.DB` accordingly.
+- Connection pooling metrics here provide direct insight into how your DB connections are utilized.
+</Accordion>
+<Accordion title="Custom Attributes Not Showing">
+- When passing additional attributes using `WithAttributes`, ensure keys and values are valid OpenTelemetry attribute types.
+- Use stable semantic attributes from `semconv` when possible for maximum compatibility.
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Summary
+
+The `RegisterDBStatsMetrics` API in `otelsql` is essential for gaining deep visibility into the runtime behavior of your Go application's SQL connection pools. Capturing key metrics such as the maximum open connections, active connections, wait counts, and connection closures allows for thorough monitoring and effective tuning.
+
+By combining DBStats metrics with query-level tracing and latency metrics, you achieve a comprehensive observability solution tailored to database interaction performance.
+
+For best results, integrate `RegisterDBStatsMetrics` alongside your metric exporter setup (e.g., Prometheus) and ensure your telemetry backend is scraping and visualizing this data appropriately.
+
+---
+
+## Related Documentation
+
+- [Instrumenting `database/sql` with otelsql](https://pkg.go.dev/github.com/XSAM/otelsql#section-documentation) — Learn how to open instrumented DB connections and use tracing and metric APIs.
+- [Quickstart Instrumentation Guide](../../guides/getting-started/quickstart-instrumentation) — Step-by-step walkthrough that includes metric registration.
+- [Examples - Otel Collector Integration](../../getting-started/examples-integration/next-steps-explore-metrics) — Validate and explore captured metrics with Prometheus and Jaeger.
+- [Semantic Conventions and Stability](../advanced-reference/semantic-conventions) — Understand metric naming and attribute standards.
+
+---
+
+For concrete examples and sample projects, see the [otelsql example/otel-collector](https://github.com/XSAM/otelsql/tree/main/example/otel-collector) which showcases full integration of tracing and DBStats metrics with OpenTelemetry Collector, Prometheus, and Jaeger.
+
+---
