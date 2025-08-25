@@ -1,0 +1,139 @@
+---
+title: "Prerequisites & System Requirements"
+description: "Outlines supported operating systems, Go versions, and database environments compatible with otelsql. Details any dependencies or recommended system specifications to ensure a smooth installation and usage experience."
+---
+
+# Prerequisites & System Requirements
+
+Welcome to the starting point for successfully implementing **otelsql**, your OpenTelemetry instrumentation library for Go's `database/sql` package. This guide lays out the essential environment details, dependencies, and system recommendations to ensure a smooth installation and flawless operation.
+
+---
+
+## 1. Supported Operating Systems
+
+otelsql is designed to work seamlessly across popular OS platforms where Go is supported:
+
+- **Linux** (Ubuntu, Debian, CentOS, and other major distributions)
+- **macOS** (10.15 Catalina and later)
+- **Windows** (Windows 10/11, with WSL for enhanced Linux compatibility)
+
+> Ensure your OS is up to date with the latest patches to avoid compatibility issues.
+
+## 2. Go Language Version Compatibility
+
+otelsql requires a modern Go environment for optimal performance:
+
+- Minimum Go version: **1.20**
+- Recommended Go version: **1.24 or later**
+
+Run the following to verify your Go version:
+
+```bash
+go version
+```
+
+If you have an older version, upgrade via your OS package manager or from the official [Go downloads page](https://golang.org/dl/).
+
+## 3. Database Environments Supported
+
+otelsql works with Go's `database/sql` package, thus supporting any SQL databases compatible with it. The most common tested environments include:
+
+- **MySQL (8.0 and later)**
+- **PostgreSQL (13 and later)**
+- **SQLite3**
+
+> Compatibility relies on the respective database/sql drivers installed and correctly configured.
+
+## 4. Dependencies & Tools
+
+Before installing otelsql, ensure the following are in place:
+
+- **Go modules enabled:** otelsql uses Go modules for dependency management. Confirm by running:
+
+```bash
+go env GO111MODULE
+```
+It should return `on` or `auto`.
+
+- **OpenTelemetry Collector (optional but recommended):** To visualize trace and metric data, setting up an OpenTelemetry Collector with exporters like Jaeger and Prometheus is advised.
+
+- **Docker and Docker Compose (for local examples and testing):** These container tools facilitate spinning up databases and telemetry backends quickly.
+
+## 5. System Specifications
+
+For a smooth experience, particularly when running examples or local tests, the following system specs are recommended:
+
+- **CPU:** 2+ cores
+- **Memory:** Minimum 4 GB RAM
+- **Disk Space:** At least 1 GB free
+
+These ensure reliable performance during instrumentation and telemetry data processing.
+
+## 6. Network & Firewall Settings
+
+If you plan to forward telemetry data to external collectors or monitoring tools, open the necessary ports:
+
+- **4317** — OTLP gRPC receiver
+- **16686** — Jaeger UI
+- **9090** — Prometheus server
+
+Adjust firewall rules accordingly on your development or production environment to allow outbound and inbound traffic on these ports.
+
+---
+
+## Troubleshooting Common Prerequisite Issues
+
+<AccordionGroup title="Troubleshooting Prerequisites">
+<Accordion title="Go Version Not Supported">
+If `go version` returns an older version:
+
+- Upgrade Go to at least 1.20.
+- Remove any conflicting old Go installations.
+- Rebuild your Go environment.
+</Accordion>
+<Accordion title="Database Driver Compatibility Issues">
+
+- Make sure you have installed the database driver packages matching your SQL database.
+- Check your project’s `go.mod` for package conflicts.
+- Test `database/sql` connectivity standalone before adding otelsql.
+
+</Accordion>
+<Accordion title="Port Conflicts or Firewall Blocking">
+
+- Verify no other processes are using the telemetry ports.
+- Use commands like `netstat -tuln` or `ss -tuln` to check.
+- Temporarily disable firewall or add rules for necessary ports.
+
+</Accordion>
+</AccordionGroup>
+
+---
+
+## Additional Resources
+
+For an overview of otelsql, its core value, and integration recommendations, visit these pages:
+
+- [What is otelsql?](/overview/product-intro-core-value/what-is-otelsql)
+- [Supported Environments & Compatibility](/overview/integration-ecosystem/compatibility-footprint)
+- [Installing otelsql](/getting-started/setup-installation/installation)
+
+---
+
+### Callouts
+
+<Tip>
+Ensure your Go environment is clean and up to date to avoid build or runtime errors when installing otelsql.
+</Tip>
+
+<Warning>
+Running telemetry services like Jaeger or Prometheus requires open ports. Restrictive firewall settings will prevent successful data collection.
+</Warning>
+
+<Info>
+Docker Compose is the easiest way to launch a full telemetry stack locally for testing otelsql instrumentation.
+</Info>
+
+---
+
+With these prerequisites checked and satisfied, you are ready to proceed confidently to installing and configuring otelsql.
+
