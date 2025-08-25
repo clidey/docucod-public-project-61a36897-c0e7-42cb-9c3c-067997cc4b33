@@ -1,0 +1,111 @@
+---
+title: "Value Proposition & Primary Use Cases"
+description: "Understand otelsql's primary motivations: stable observability for database operations, seamless OpenTelemetry integration, and robust metrics and tracing. See who should use it—Go developers, SREs, backend engineers—and learn the most common use cases: application monitoring, debugging, and SLO tracking."
+---
+
+# Value Proposition & Primary Use Cases
+
+## Unlock Stable Observability for Your Database Operations
+
+otelsql empowers Go developers, SREs, and backend engineers to seamlessly monitor the performance, health, and reliability of database interactions through stable, production-grade observability. With tight OpenTelemetry integration, otelsql transforms your database/sql instrumentation into actionable metrics and traces without disrupting your existing workflows.
+
+### Why otelsql?
+- **Stable Observability:** Gain consistent, reliable insight into every SQL query and transaction.
+- **Seamless OpenTelemetry Integration:** Use industry-standard tracing and metrics systems without reinventing instrumentation.
+- **Rich Metrics & Tracing:** Collect high-resolution telemetry for monitoring, alerting, and debugging.
+- **Minimal Developer Overhead:** Easy instrumenting for Go's database/sql package — leverage native idioms without complex setup.
+- **Robust Troubleshooting Support:** Quickly identify slow queries, errors, and performance bottlenecks.
+
+### Who Should Use otelsql?
+- Go developers looking to add observability to their database access automatically.
+- Site Reliability Engineers (SREs) aiming for accurate, actionable telemetry around database operations.
+- Backend engineers responsible for application monitoring, debugging, and Service Level Objective (SLO) tracking.
+
+---
+
+## What Is This?
+
+otelsql is a Go library designed specifically for instrumenting the standard database/sql package with OpenTelemetry-compatible tracing and metrics. It solves the challenge of understanding database behavior in production environments by providing stable observability without intrusive code changes.
+
+At its core, otelsql captures key telemetry signals from your SQL operations—queries, transactions, and connections—and exports detailed data to observability backends via OpenTelemetry. This integration ensures all your metrics and traces align with your existing observability ecosystem.
+
+Unlike generic instrumentation, otelsql is tailored for the Go ecosystem, providing robust, seamless support for your database access patterns. This makes it a natural choice for teams that want both high fidelity telemetry and integration simplicity.
+
+---
+
+## Key Features & Capabilities
+
+### 1. Stable, Fine-Grained Metrics
+Collect detailed metrics such as query duration, error rates, and connection pool usage. Enables precise monitoring and trend analysis to maintain database performance.
+
+### 2. Distributed Tracing with OpenTelemetry
+Automatically generate spans for SQL queries and transactions, compatible with Jaeger, Zipkin, or any OpenTelemetry-compliant tracing backend. See exactly where queries fit in your application's workflow.
+
+### 3. SQL Comment Propagation (Sqlcommenter Integration)
+Enhance trace context propagation by injecting OpenTelemetry context into SQL comments. This enriches telemetry data and aids correlation across service boundaries.
+
+### 4. Lightweight Instrumentation
+Works transparently with Go's native database/sql package without requiring rewriting your data access code.
+
+### 5. Robust OpenTelemetry Collector Compatibility
+Designed to work seamlessly with OpenTelemetry Collector setups for centralized telemetry aggregation, including Prometheus and Jaeger integration.
+
+---
+
+## Why Should I Care?
+
+### Benefits You Gain
+- **Improved Debugging:** Instantly identify slow, failing, or misbehaving SQL queries.
+- **Effective Monitoring:** Set meaningful alerts on database latency, errors, or resource usage.
+- **SLO Compliance Tracking:** Measure your database-backed app’s reliability and performance against your service level objectives.
+- **Reduced Mean Time To Resolution (MTTR):** Faster problem diagnosis leads to quicker fixes and less downtime.
+
+### Common Use Cases
+#### Application Monitoring
+Use otelsql to keep continuous watch over query performance in live systems. Observe how SQL operations contribute to application latency and overall health.
+
+#### Debugging Production Issues
+Trace complex request paths involving database calls to detect root causes of errors and slowdowns. SQL comments embedding OpenTelemetry context make cross-service tracing far easier.
+
+#### Service Level Objective (SLO) Tracking
+Generate precise metrics to track your database's performance against defined SLOs, facilitating data-driven decisions for capacity planning and reliability engineering.
+
+### Before & After otelsql
+| Before | After |
+|---|---|
+| Manual, error-prone SQL logging and limited visibility | Comprehensive, standardized metrics & traces without extra code |
+| Slow, guesswork-driven debugging cycles | Clear, actionable insight into database performance and errors |
+| Difficulty correlating database activity with app behavior | End-to-end trace context propagation with SQL comment integration |
+
+### Return on Investment
+- Save hours or days of debugging time through better insights.
+- Avoid costly downtime with proactive reliability monitoring.
+- Keep engineering teams focused on delivering value instead of firefighting.
+
+---
+
+## Getting Started Preview
+
+Getting started with otelsql is straightforward and designed to fit naturally into your development workflow.
+
+### Quick Start Overview
+- Import the otelsql instrumentation package with your database driver.
+- Wrap your database/sql `*sql.DB` objects for automatic telemetry collection.
+- Configure OpenTelemetry exporter settings as needed.
+
+You can refer to the example setup that demonstrates integration with a MySQL client, OpenTelemetry Collector, Jaeger, and Prometheus, enabling you to visualize trace and metrics data instantly.
+
+### Prerequisites
+- Go environment with access to your database/sql driver.
+- An OpenTelemetry-compatible backend or collector for receiving telemetry data.
+
+### Next Steps
+- Head to the [Getting Started Guide](../getting-started/setup-installation/installation) to see step-by-step integration instructions.
+- Explore the [Architecture & Data Flow](../architecture-concepts/architecture-and-data-flow) page for deeper understanding of telemetry pipelines.
+- Try the [Run Local Examples](../../getting-started/examples-integration/local-quickstart-examples) to see otelsql in action.
+
+---
+
+This page provides the foundational reasons for choosing otelsql and highlights how it addresses real user needs with stable, integrated observability solutions tailored to Go database applications.
+
+---
