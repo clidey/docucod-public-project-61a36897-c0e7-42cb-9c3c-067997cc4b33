@@ -1,0 +1,161 @@
+{
+  "background": {
+    "decoration": "gradient"
+  },
+  "colors": {
+    "dark": "#1E3A8A",
+    "light": "#60A5FA",
+    "primary": "#60A5FA"
+  },
+  "favicon": "/favicon.svg",
+  "fonts": {
+    "family": "Montserrat",
+    "format": "woff2",
+    "source": "https://fonts.gstatic.com/s/googlesansflex/v5/t5sJIQcYNIWbFgDgAAzZ34auoVyXkJCOvp3SFWJbN5hF8Ju1x6sKCyp0l9sI40swNJwGpVd4AZzz0v6lJ4qFXNZhGjLvDSkV4USKMo6qQzwliVdHAy9jxTDHg_ugnAakpwGc-cxgUqDCIUI.woff2"
+  },
+  "icons": {
+    "library": "fontawesome"
+  },
+  "logo": {
+    "dark": "./logo/logo.svg",
+    "light": "./logo/logo.svg"
+  },
+  "name": "otelsql",
+  "navigation": {
+    "tabs": [
+      {
+        "groups": [
+          {
+            "group": "Product Introduction and Core Value",
+            "pages": [
+              "overview/product-intro-core-value/what-is-otelsql",
+              "overview/product-intro-core-value/value-proposition-use-cases",
+              "overview/product-intro-core-value/audience-reach"
+            ]
+          },
+          {
+            "group": "Architecture, Concepts, and Key Features",
+            "pages": [
+              "overview/architecture-concepts/architecture-and-data-flow",
+              "overview/architecture-concepts/core-concepts-terminology",
+              "overview/architecture-concepts/feature-overview"
+            ]
+          },
+          {
+            "group": "Integration and Ecosystem Alignment",
+            "pages": [
+              "overview/integration-ecosystem/example-integrations",
+              "overview/integration-ecosystem/compatibility-footprint"
+            ]
+          }
+        ],
+        "tab": "Overview"
+      },
+      {
+        "groups": [
+          {
+            "group": "Setup \u0026 Installation",
+            "pages": [
+              "getting-started/setup-installation/prerequisites-system-requirements",
+              "getting-started/setup-installation/installation"
+            ]
+          },
+          {
+            "group": "Configuration \u0026 First Use",
+            "pages": [
+              "getting-started/configuration-usage/basic-configuration",
+              "getting-started/configuration-usage/first-otel-instrumentation",
+              "getting-started/configuration-usage/quick-validation-troubleshooting"
+            ]
+          },
+          {
+            "group": "Examples \u0026 Real-World Integration",
+            "pages": [
+              "getting-started/examples-integration/local-quickstart-examples",
+              "getting-started/examples-integration/next-steps-explore-metrics"
+            ]
+          }
+        ],
+        "tab": "Getting Started"
+      },
+      {
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "guides/getting-started/quickstart-instrumentation",
+              "guides/getting-started/basic-tracing-metrics"
+            ]
+          },
+          {
+            "group": "Advanced Workflows \u0026 Integrations",
+            "pages": [
+              "guides/advanced-scenarios/otel-collector-integration",
+              "guides/advanced-scenarios/semantic-convention-migration",
+              "guides/advanced-scenarios/sqlcommenter-context-propagation",
+              "guides/advanced-scenarios/troubleshooting-signals"
+            ]
+          },
+          {
+            "group": "Best Practices \u0026 Optimization",
+            "pages": [
+              "guides/best-practices/instrumentation-patterns",
+              "guides/best-practices/metrics-tuning"
+            ]
+          }
+        ],
+        "tab": "Guides"
+      },
+      {
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api-reference/core-api/instrumenting-database",
+              "api-reference/core-api/metrics-instrumentation",
+              "api-reference/core-api/option-configuration"
+            ]
+          },
+          {
+            "group": "Advanced Reference",
+            "pages": [
+              "api-reference/advanced-reference/semantic-conventions",
+              "api-reference/advanced-reference/error-handling"
+            ]
+          }
+        ],
+        "tab": "API Reference"
+      },
+      {
+        "groups": [
+          {
+            "group": "Release Notes \u0026 Version History",
+            "pages": [
+              "changelog/release-notes/latest-release",
+              "changelog/release-notes/historical-releases"
+            ]
+          },
+          {
+            "group": "Upgrade \u0026 Migration Guidance",
+            "pages": [
+              "changelog/upgrade-migration/breaking-changes",
+              "changelog/upgrade-migration/deprecations-removals"
+            ]
+          },
+          {
+            "group": "New Features \u0026 Bug Fix Summaries",
+            "pages": [
+              "changelog/feature-fix-summary/feature-highlights",
+              "changelog/feature-fix-summary/bug-fixes"
+            ]
+          }
+        ],
+        "tab": "Changelog"
+      }
+    ]
+  },
+  "styling": {
+    "codeblocks": "dark",
+    "eyebrows": "breadcrumbs"
+  }
+}
